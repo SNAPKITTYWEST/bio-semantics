@@ -1,214 +1,2306 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Gene-expression semantic report</title>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BIO-SEMANTICS — Gene-Expression Semantic Modeling Pipeline</title>
 <style>
-:root{font:16px system-ui;color:#182536;background:#eef2f6}
-body{max-width:1200px;margin:auto;padding:24px}
-h1{margin-bottom:8px}h2{font-size:1.15rem}
-header,section{background:white;border:1px solid #ced7e0;border-radius:12px;padding:20px;margin-bottom:16px}
-label{display:inline-flex;flex-direction:column;gap:5px;margin:8px 12px 8px 0}
-select,input{font:inherit;max-width:100%;padding:7px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
-.grid section{min-width:0}
-pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f4f6f8;padding:12px}
-.scroll{overflow:auto;max-height:420px}
-table{border-collapse:collapse;width:100%;font-size:.9rem}
-th,td{text-align:left;border-bottom:1px solid #ddd;padding:8px;vertical-align:top}
-.tag{display:inline-block;border:1px solid;padding:3px 8px;border-radius:5px;font-size:.8rem}
-.notice{color:#614700;background:#fff5d6;padding:12px}
-#error{color:#9c1927}
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@200;300;400;500;600&family=IBM+Plex+Serif:ital,wght@0,300;0,400;1,300&display=swap');
+
+:root {
+  --bg-primary: #030810;
+  --bg-secondary: #060e1a;
+  --bg-panel: rgba(6,18,36,0.85);
+  --bg-panel-hover: rgba(10,26,52,0.92);
+  --border-primary: rgba(0,200,255,0.12);
+  --border-active: rgba(0,200,255,0.35);
+  --border-glow: rgba(0,200,255,0.5);
+  --cyan: #00c8ff;
+  --cyan-dim: #006688;
+  --blue: #2266ff;
+  --blue-bright: #4488ff;
+  --violet: #8844ff;
+  --violet-dim: #5522aa;
+  --green-bio: #22cc66;
+  --green-dim: #0a6630;
+  --amber: #ffaa22;
+  --red: #ff3344;
+  --white: #e8eef6;
+  --white-dim: #8899aa;
+  --text-primary: #c8d8e8;
+  --text-secondary: #6688aa;
+  --text-label: #446688;
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'IBM Plex Sans', sans-serif;
+  --serif: 'IBM Plex Serif', serif;
+  --glow-cyan: 0 0 8px rgba(0,200,255,0.3), 0 0 20px rgba(0,200,255,0.1);
+  --glow-violet: 0 0 8px rgba(136,68,255,0.3), 0 0 20px rgba(136,68,255,0.1);
+  --glow-green: 0 0 8px rgba(34,204,102,0.3), 0 0 20px rgba(34,204,102,0.1);
+}
+
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+html { font-size: 13px; }
+
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--sans);
+  font-weight: 300;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+/* === GRID BACKGROUND === */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    linear-gradient(rgba(0,200,255,0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,200,255,0.015) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(ellipse 80% 60% at 50% 30%, rgba(0,40,80,0.15), transparent);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* === HEADER === */
+.header {
+  position: relative;
+  z-index: 10;
+  text-align: center;
+  padding: 28px 20px 16px;
+  border-bottom: 1px solid var(--border-primary);
+  background: linear-gradient(180deg, rgba(6,18,36,0.95), rgba(3,8,16,0.8));
+}
+
+.header-title {
+  font-family: var(--sans);
+  font-weight: 200;
+  font-size: 2.6rem;
+  letter-spacing: 0.45em;
+  color: var(--cyan);
+  text-shadow: var(--glow-cyan);
+  margin-bottom: 6px;
+}
+
+.header-subtitle {
+  font-family: var(--serif);
+  font-weight: 300;
+  font-style: italic;
+  font-size: 1.05rem;
+  color: var(--text-secondary);
+  letter-spacing: 0.08em;
+  margin-bottom: 12px;
+}
+
+.header-authors {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  color: var(--text-label);
+  text-transform: uppercase;
+}
+
+.header-authors span { margin: 0 14px; }
+.header-authors span.sep { color: var(--cyan-dim); }
+
+/* === NAV === */
+.nav {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  justify-content: center;
+  gap: 2px;
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--border-primary);
+  background: rgba(3,8,16,0.9);
+}
+
+.nav-item {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-label);
+  padding: 6px 14px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  transition: all 0.3s ease;
+  user-select: none;
+}
+
+.nav-item:hover {
+  color: var(--cyan);
+  border-color: var(--border-active);
+  background: rgba(0,200,255,0.04);
+}
+
+.nav-item.active {
+  color: var(--cyan);
+  border-color: var(--border-active);
+  background: rgba(0,200,255,0.06);
+  text-shadow: var(--glow-cyan);
+}
+
+/* === MAIN LAYOUT === */
+.main {
+  position: relative;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: 1fr 380px 1fr;
+  grid-template-rows: auto auto auto;
+  gap: 12px;
+  padding: 14px;
+  max-width: 1920px;
+  margin: 0 auto;
+}
+
+/* === PANELS === */
+.panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-primary);
+  border-radius: 3px;
+  padding: 14px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.4s ease, box-shadow 0.4s ease;
+}
+
+.panel::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--cyan-dim), transparent);
+  opacity: 0.5;
+}
+
+.panel:hover {
+  border-color: var(--border-active);
+  box-shadow: var(--glow-cyan);
+}
+
+.panel-title {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--cyan);
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel-title .indicator {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--cyan);
+  box-shadow: 0 0 6px var(--cyan);
+  animation: pulse-indicator 2s ease-in-out infinite;
+}
+
+@keyframes pulse-indicator {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+/* === LEFT COLUMN === */
+.left-column {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* === CENTER COLUMN === */
+.center-column {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+
+/* === RIGHT COLUMN === */
+.right-column {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* === HELIX CANVAS === */
+.helix-container {
+  position: relative;
+  width: 380px;
+  height: 720px;
+  border: 1px solid var(--border-primary);
+  border-radius: 3px;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 30%, rgba(0,40,80,0.12), transparent);
+}
+
+#helixCanvas {
+  width: 100%;
+  height: 100%;
+}
+
+.helix-labels {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none;
+}
+
+.helix-label {
+  position: absolute;
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-label);
+  white-space: nowrap;
+}
+
+.helix-label.left { right: calc(50% + 50px); text-align: right; }
+.helix-label.right { left: calc(50% + 50px); }
+
+.helix-label .hl-val {
+  color: var(--cyan);
+  font-weight: 500;
+}
+
+/* === PIPELINE FLOW NODES === */
+.pipeline-flow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  width: 100%;
+}
+
+.pipeline-node {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  padding: 5px 12px;
+  border: 1px solid var(--border-primary);
+  border-radius: 2px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  background: rgba(3,8,16,0.6);
+  width: 100%;
+  max-width: 240px;
+}
+
+.pipeline-node:hover, .pipeline-node.active {
+  color: var(--cyan);
+  border-color: var(--border-active);
+  background: rgba(0,200,255,0.05);
+  text-shadow: 0 0 8px rgba(0,200,255,0.4);
+}
+
+.pipeline-connector {
+  width: 1px;
+  height: 14px;
+  position: relative;
+  overflow: visible;
+}
+
+.pipeline-connector::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 1px;
+  background: linear-gradient(180deg, var(--cyan-dim), rgba(0,200,255,0.05));
+}
+
+/* Particle animation on connectors */
+.pipeline-connector::after {
+  content: '';
+  position: absolute;
+  left: -1px; top: 0;
+  width: 3px; height: 3px;
+  border-radius: 50%;
+  background: var(--cyan);
+  box-shadow: 0 0 4px var(--cyan);
+  animation: flow-particle 1.5s linear infinite;
+}
+
+@keyframes flow-particle {
+  0% { top: 0; opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+/* === CDNA PANEL === */
+.seq-trace {
+  display: flex;
+  gap: 1px;
+  margin: 6px 0;
+  height: 32px;
+  align-items: flex-end;
+}
+
+.seq-bar {
+  width: 3px;
+  background: var(--cyan);
+  border-radius: 1px 1px 0 0;
+  opacity: 0.7;
+  transition: opacity 0.3s;
+}
+
+.seq-bar:hover { opacity: 1; }
+
+.seq-bar.a { background: var(--green-bio); }
+.seq-bar.t { background: var(--red); }
+.seq-bar.g { background: var(--amber); }
+.seq-bar.c { background: var(--blue-bright); }
+
+.seq-reads {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  color: var(--text-label);
+  line-height: 1.4;
+  margin-top: 8px;
+}
+
+.seq-reads .base { padding: 0 1px; }
+.seq-reads .base.a { color: var(--green-bio); }
+.seq-reads .base.t { color: var(--red); }
+.seq-reads .base.g { color: var(--amber); }
+.seq-reads .base.c { color: var(--blue-bright); }
+
+/* === EXPRESSION MATRIX === */
+.expr-matrix {
+  display: grid;
+  gap: 1px;
+  margin: 8px 0;
+}
+
+.expr-cell {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 1px;
+  transition: transform 0.2s;
+}
+
+.expr-cell:hover { transform: scale(1.8); z-index: 10; }
+
+.expr-axis-label {
+  font-family: var(--mono);
+  font-size: 0.52rem;
+  color: var(--text-label);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* === VALIDATION PANEL === */
+.validation-grid {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 3px 12px;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+}
+
+.val-rule {
+  color: var(--text-secondary);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 2px 0;
+}
+
+.val-status {
+  text-align: right;
+  font-weight: 500;
+}
+
+.val-status.pass { color: var(--green-bio); }
+.val-status.warn { color: var(--amber); }
+.val-status.fail { color: var(--red); }
+
+/* === QUANTITY KIND === */
+.qty-kinds {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.qty-kind {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.qty-kind:hover, .qty-kind.active {
+  border-color: var(--border-active);
+  background: rgba(0,200,255,0.04);
+}
+
+.qty-glyph {
+  width: 20px; height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.qty-glyph svg { width: 16px; height: 16px; }
+
+.qty-label {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.qty-kind:hover .qty-label,
+.qty-kind.active .qty-label { color: var(--cyan); }
+
+.qty-source {
+  font-family: var(--serif);
+  font-size: 0.58rem;
+  font-style: italic;
+  color: var(--text-label);
+  margin-left: auto;
+}
+
+/* === STAN PANEL === */
+.stan-chart {
+  position: relative;
+  height: 120px;
+  margin: 8px 0;
+  border-left: 1px solid var(--border-primary);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.stan-chart canvas { width: 100%; height: 100%; }
+
+.stan-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+}
+
+.stan-table th {
+  font-family: var(--mono);
+  font-size: 0.52rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-label);
+  text-align: left;
+  padding: 3px 6px;
+  border-bottom: 1px solid var(--border-primary);
+  font-weight: 400;
+}
+
+.stan-table td {
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  color: var(--text-secondary);
+  padding: 3px 6px;
+  border-bottom: 1px solid rgba(0,200,255,0.04);
+}
+
+.stan-table td.num { color: var(--cyan); text-align: right; }
+
+.stan-flow {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin: 10px 0 6px;
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.stan-flow-node {
+  color: var(--text-secondary);
+  padding: 3px 8px;
+  border: 1px solid var(--border-primary);
+  border-radius: 2px;
+}
+
+.stan-flow-arrow { color: var(--cyan-dim); }
+
+/* === MINIZINC PANEL === */
+.mzn-graph {
+  position: relative;
+  height: 160px;
+  margin: 8px 0;
+}
+
+.mzn-graph canvas { width: 100%; height: 100%; }
+
+.mzn-notation {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  text-align: center;
+  margin: 8px 0;
+  line-height: 1.6;
+}
+
+/* === PTM PANEL === */
+.ptm-tape {
+  display: flex;
+  justify-content: center;
+  gap: 2px;
+  margin: 10px 0;
+  position: relative;
+}
+
+.ptm-cell {
+  width: 28px; height: 28px;
+  border: 1px solid var(--border-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--cyan);
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.ptm-cell.active {
+  border-color: var(--cyan);
+  background: rgba(0,200,255,0.1);
+  box-shadow: var(--glow-cyan);
+}
+
+.ptm-head {
+  position: absolute;
+  bottom: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0; height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 6px solid var(--cyan);
+  filter: drop-shadow(0 0 4px var(--cyan));
+}
+
+.ptm-states {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin: 16px 0 8px;
+}
+
+.ptm-state {
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  border: 1px solid var(--border-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  color: var(--text-secondary);
+  transition: all 0.4s ease;
+  position: relative;
+}
+
+.ptm-state.current {
+  border-color: var(--cyan);
+  color: var(--cyan);
+  box-shadow: var(--glow-cyan);
+}
+
+.ptm-state.accept {
+  border-width: 2px;
+}
+
+.ptm-transition-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+}
+
+.ptm-transition-table th {
+  font-family: var(--mono);
+  font-size: 0.5rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-label);
+  text-align: center;
+  padding: 3px 4px;
+  border-bottom: 1px solid var(--border-primary);
+  font-weight: 400;
+}
+
+.ptm-transition-table td {
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 2px 4px;
+  border-bottom: 1px solid rgba(0,200,255,0.04);
+}
+
+.ptm-transition-table tr.active-row td {
+  color: var(--cyan);
+  background: rgba(0,200,255,0.04);
+}
+
+.ptm-complexity {
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  color: var(--text-label);
+  text-align: center;
+  margin-top: 8px;
+  line-height: 1.6;
+}
+
+.ptm-complexity span { color: var(--cyan); }
+
+/* === BINARY PANEL === */
+.binary-stream {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--cyan-dim);
+  line-height: 1.6;
+  word-break: break-all;
+  margin: 6px 0;
+  letter-spacing: 0.05em;
+}
+
+.binary-stream .one { color: var(--cyan); }
+.binary-stream .zero { color: var(--cyan-dim); opacity: 0.5; }
+
+.binary-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 6px;
+}
+
+.binary-table th {
+  font-family: var(--mono);
+  font-size: 0.5rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-label);
+  text-align: left;
+  padding: 2px 6px;
+  border-bottom: 1px solid var(--border-primary);
+  font-weight: 400;
+}
+
+.binary-table td {
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  color: var(--text-secondary);
+  padding: 2px 6px;
+  border-bottom: 1px solid rgba(0,200,255,0.04);
+}
+
+/* === QUIPPER PANEL === */
+.quipper-circuit {
+  position: relative;
+  height: 140px;
+  margin: 8px 0;
+}
+
+.quipper-circuit canvas { width: 100%; height: 100%; }
+
+.quipper-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.quipper-stat {
+  text-align: center;
+}
+
+.quipper-stat .qs-val {
+  font-family: var(--mono);
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--violet);
+  text-shadow: var(--glow-violet);
+}
+
+.quipper-stat .qs-label {
+  font-family: var(--mono);
+  font-size: 0.48rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-label);
+  margin-top: 2px;
+}
+
+/* === PROVENANCE PANEL === */
+.prov-chain {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.prov-node {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 8px;
+  padding: 4px 8px;
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.prov-node:hover {
+  border-color: var(--border-active);
+  background: rgba(0,200,255,0.03);
+}
+
+.prov-icon {
+  width: 8px; height: 8px;
+  border: 1px solid var(--cyan-dim);
+  border-radius: 50%;
+}
+
+.prov-node:hover .prov-icon {
+  background: var(--cyan);
+  border-color: var(--cyan);
+  box-shadow: 0 0 6px var(--cyan);
+}
+
+.prov-name {
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.prov-hash {
+  font-family: var(--mono);
+  font-size: 0.5rem;
+  color: var(--text-label);
+  letter-spacing: 0.02em;
+}
+
+.prov-connector {
+  width: 1px;
+  height: 8px;
+  margin-left: 12px;
+  background: var(--border-primary);
+  position: relative;
+}
+
+.prov-detail {
+  display: none;
+  font-family: var(--mono);
+  font-size: 0.52rem;
+  color: var(--text-label);
+  padding: 6px 8px 6px 28px;
+  line-height: 1.6;
+  border-left: 1px solid var(--border-primary);
+  margin-left: 12px;
+}
+
+.prov-detail .pd-key { color: var(--text-label); text-transform: uppercase; letter-spacing: 0.1em; }
+.prov-detail .pd-val { color: var(--text-secondary); }
+
+/* === RPG/JCL PANEL === */
+.rpg-block {
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  line-height: 1.7;
+  color: var(--text-label);
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(0,200,255,0.06);
+  padding: 8px 10px;
+  margin: 6px 0;
+  border-radius: 2px;
+  position: relative;
+}
+
+.rpg-block .rpg-kw { color: var(--amber); }
+.rpg-block .rpg-id { color: var(--cyan-dim); }
+.rpg-block .rpg-st { color: var(--green-bio); }
+.rpg-block .rpg-comment { color: var(--text-label); opacity: 0.5; }
+
+.rpg-job-status {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 4px 10px;
+  font-family: var(--mono);
+  font-size: 0.54rem;
+  margin-top: 6px;
+}
+
+.rpg-job-id { color: var(--text-label); }
+.rpg-job-name { color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.08em; }
+.rpg-job-state { font-weight: 500; }
+.rpg-job-state.complete { color: var(--green-bio); }
+.rpg-job-state.running { color: var(--amber); }
+.rpg-job-state.queued { color: var(--text-label); }
+
+/* === REPO PANEL === */
+.repo-tree {
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  line-height: 1.8;
+  color: var(--text-label);
+}
+
+.repo-tree .dir { color: var(--cyan-dim); }
+.repo-tree .file { color: var(--text-secondary); }
+.repo-tree .file-py { color: var(--green-bio); }
+.repo-tree .file-ts { color: var(--blue-bright); }
+.repo-tree .file-md { color: var(--text-secondary); }
+.repo-tree .file-rpg { color: var(--amber); }
+.repo-tree .file-jcl { color: var(--amber); opacity: 0.7; }
+.repo-tree .file-html { color: var(--violet); }
+
+.repo-indent { display: inline-block; }
+.repo-indent-1 { width: 16px; }
+.repo-indent-2 { width: 32px; }
+
+/* === BOTTOM STRIP === */
+.bottom-strip {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
+
+/* === ARCHITECTURE PROPOSITION === */
+.proposition {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 20px;
+  border-top: 1px solid var(--border-primary);
+  margin-top: 4px;
+}
+
+.proposition-line {
+  font-family: var(--serif);
+  font-size: 0.72rem;
+  color: var(--text-label);
+  line-height: 2.2;
+  font-style: italic;
+}
+
+.proposition-line .prop-subject {
+  font-family: var(--mono);
+  font-style: normal;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cyan-dim);
+}
+
+.proposition-line .prop-verb {
+  color: var(--text-secondary);
+}
+
+/* === ANIMATIONS === */
+@keyframes scan-line {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+
+@keyframes data-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes tape-scan {
+  0% { left: 0; }
+  100% { left: calc(100% - 28px); }
+}
+
+/* === SCROLLBAR === */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--bg-primary); }
+::-webkit-scrollbar-thumb { background: var(--cyan-dim); border-radius: 2px; }
+
+/* === RESPONSIVE === */
+@media (max-width: 1400px) {
+  .main {
+    grid-template-columns: 1fr 340px 1fr;
+  }
+}
+
+@media (max-width: 1100px) {
+  .main {
+    grid-template-columns: 1fr;
+  }
+  .helix-container { width: 100%; max-width: 380px; margin: 0 auto; }
+  .bottom-strip { grid-template-columns: 1fr; }
+}
+
+/* === MISC === */
+.glow-text { text-shadow: var(--glow-cyan); }
+.small-label {
+  font-family: var(--mono);
+  font-size: 0.48rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-label);
+}
+
+.divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border-primary), transparent);
+  margin: 8px 0;
+}
+
+.semantic-flow-label {
+  font-family: var(--mono);
+  font-size: 0.5rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-label);
+  text-align: center;
+  margin: 4px 0 2px;
+}
+
+.semantic-flow-arrow {
+  text-align: center;
+  color: var(--cyan-dim);
+  font-size: 0.6rem;
+  line-height: 1;
+}
 </style>
-<header>
-<h1>Gene-expression semantic report</h1>
-<p>Observed measurements, inferred results, and computational representations retain their declared meaning.</p>
-<label>Open report JSON<input id="file" type="file" accept=".json,application/json"></label>
-<p id="error" role="alert"></p>
-<p id="state" aria-live="polite">No report loaded. No analysis has been executed.</p>
-<p class="notice">This viewer displays supplied artifacts. Importing a report does not verify provenance, run native tools, establish convergence, or execute a quantum circuit.</p>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-title">BIO-SEMANTICS</div>
+  <div class="header-subtitle">Gene-Expression Semantic Modeling Pipeline</div>
+  <div class="header-authors">
+    <span>Ahmad Ali Parr</span>
+    <span class="sep">·</span>
+    <span>Jessica L. Williams</span>
+    <span class="sep">·</span>
+    <span>SNAPKITTYWEST</span>
+  </div>
 </header>
-<section>
-<h2>Observations</h2><span class="tag">OBSERVED — as declared by the report</span>
-<div id="filters"></div><p id="counts"></p>
-<div id="observations" class="scroll"></div>
-<h3>Sequencing and quality metadata</h3><pre id="sequencing">Not supplied</pre>
-</section>
-<div class="grid">
-<section><h2>Biological model and comparison</h2><pre id="models"></pre></section>
-<section><h2>Parameters</h2><span class="tag">UNKNOWN / PRIOR</span><pre id="parameters"></pre></section>
-<section><h2>Posteriors</h2><span class="tag">INFERRED</span><pre id="posteriors"></pre><h3>Predictions</h3><span class="tag">PREDICTED</span><pre id="predictions"></pre></section>
-<section><h2>Constraints</h2><span class="tag">CONSTRAINED</span><pre id="constraints"></pre></section>
-<section><h2>Binary semantics</h2><span class="tag">ENCODED</span><pre id="binary"></pre></section>
-<section><h2>PTM</h2><pre id="ptm"></pre></section>
-<section><h2>Quipper</h2><pre id="quipper"></pre></section>
-<section><h2>Provenance</h2><pre id="artifacts"></pre><h3>Stage execution records</h3><pre id="stages"></pre></section>
-</div>
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="nav-item active" data-target="observations">Observations</div>
+  <div class="nav-item" data-target="semantics">Semantics</div>
+  <div class="nav-item" data-target="bayesian">Bayesian</div>
+  <div class="nav-item" data-target="constraints">Constraints</div>
+  <div class="nav-item" data-target="binary">Binary</div>
+  <div class="nav-item" data-target="ptm">PTM</div>
+  <div class="nav-item" data-target="quipper">Quipper</div>
+  <div class="nav-item" data-target="provenance">Provenance</div>
+  <div class="nav-item" data-target="rpgjcl">RPG/JCL</div>
+</nav>
+
+<!-- MAIN -->
+<main class="main">
+
+  <!-- LEFT COLUMN -->
+  <div class="left-column">
+
+    <!-- cDNA SEQUENCING -->
+    <div class="panel" id="panel-cdna">
+      <div class="panel-title"><span class="indicator"></span>cDNA Sequencing Observations</div>
+      <div class="seq-trace" id="seqTrace"></div>
+      <div class="seq-reads" id="seqReads"></div>
+      <div class="divider"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-family:var(--mono);font-size:0.54rem;">
+        <div><span class="small-label">coverage</span><br><span style="color:var(--cyan)">42.7×</span></div>
+        <div><span class="small-label">reads</span><br><span style="color:var(--cyan)">2.4M</span></div>
+        <div><span class="small-label">quality</span><br><span style="color:var(--green-bio)">Q38.2</span></div>
+        <div><span class="small-label">samples</span><br><span style="color:var(--cyan)">48</span></div>
+      </div>
+    </div>
+
+    <!-- GENE EXPRESSION MATRIX -->
+    <div class="panel" id="panel-expression">
+      <div class="panel-title"><span class="indicator"></span>Gene Expression Matrix</div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+        <span class="expr-axis-label">← genes (n=2,847) →</span>
+        <span class="expr-axis-label">samples ↓</span>
+      </div>
+      <div class="expr-matrix" id="exprMatrix"></div>
+      <div class="divider"></div>
+      <div style="display:flex;gap:12px;font-family:var(--mono);font-size:0.5rem;color:var(--text-label);">
+        <span>CONDITION <span style="color:var(--cyan)">4</span></span>
+        <span>TIMEPOINT <span style="color:var(--cyan)">6</span></span>
+        <span>REPLICATE <span style="color:var(--cyan)">2</span></span>
+        <span>CELL TYPE <span style="color:var(--cyan)">3</span></span>
+      </div>
+    </div>
+
+    <!-- DATA VALIDATION -->
+    <div class="panel" id="panel-validation">
+      <div class="panel-title"><span class="indicator"></span>Data Validation · semantics.py</div>
+      <div style="font-family:var(--mono);font-size:0.54rem;color:var(--text-label);margin-bottom:6px;">10 VALIDATOR RULES</div>
+      <div class="validation-grid">
+        <div class="val-rule">version</div><div class="val-status pass">■ PASS</div>
+        <div class="val-rule">discriminant</div><div class="val-status pass">■ PASS</div>
+        <div class="val-rule">value/missing</div><div class="val-status pass">■ PASS</div>
+        <div class="val-rule">raw count</div><div class="val-status pass">■ PASS</div>
+        <div class="val-rule">decimal</div><div class="val-status pass">■ PASS</div>
+        <div class="val-rule">reference</div><div class="val-status warn">■ WARN</div>
+        <div class="val-rule">quantity kind</div><div class="val-status pass">■ PASS</div>
+        <div class="val-rule">exclusion</div><div class="val-status pass">■ PASS</div>
+        <div class="val-rule">source bytes</div><div class="val-status pass">■ PASS</div>
+        <div class="val-rule">synthetic origin</div><div class="val-status pass">■ PASS</div>
+      </div>
+    </div>
+
+    <!-- QUANTITY KIND -->
+    <div class="panel" id="panel-qtykind">
+      <div class="panel-title"><span class="indicator"></span>Semantic Quantity Classification</div>
+      <div class="qty-kinds">
+        <div class="qty-kind" data-kind="observed">
+          <div class="qty-glyph"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="5" fill="none" stroke="#22cc66" stroke-width="1"/><circle cx="8" cy="8" r="1.5" fill="#22cc66"/></svg></div>
+          <span class="qty-label">Observed</span>
+          <span class="qty-source">measurement</span>
+        </div>
+        <div class="qty-kind" data-kind="inferred">
+          <div class="qty-glyph"><svg viewBox="0 0 16 16"><path d="M3,12 Q8,2 13,12" fill="none" stroke="#8844ff" stroke-width="1"/><line x1="8" y1="4" x2="8" y2="12" stroke="#8844ff" stroke-width="0.5" stroke-dasharray="1,1"/></svg></div>
+          <span class="qty-label">Inferred</span>
+          <span class="qty-source">posterior estimation</span>
+        </div>
+        <div class="qty-kind" data-kind="derived">
+          <div class="qty-glyph"><svg viewBox="0 0 16 16"><polyline points="3,12 8,4 13,12" fill="none" stroke="#00c8ff" stroke-width="1"/></svg></div>
+          <span class="qty-label">Derived</span>
+          <span class="qty-source">deterministic transform</span>
+        </div>
+        <div class="qty-kind" data-kind="predicted">
+          <div class="qty-glyph"><svg viewBox="0 0 16 16"><line x1="3" y1="10" x2="8" y2="6" stroke="#4488ff" stroke-width="1"/><line x1="8" y1="6" x2="13" y2="4" stroke="#4488ff" stroke-width="1" stroke-dasharray="2,1"/><circle cx="13" cy="4" r="1.5" fill="none" stroke="#4488ff" stroke-width="0.8"/></svg></div>
+          <span class="qty-label">Predicted</span>
+          <span class="qty-source">model output</span>
+        </div>
+        <div class="qty-kind" data-kind="constrained">
+          <div class="qty-glyph"><svg viewBox="0 0 16 16"><rect x="3" y="3" width="10" height="10" fill="none" stroke="#ffaa22" stroke-width="1" rx="1"/><line x1="6" y1="3" x2="6" y2="13" stroke="#ffaa22" stroke-width="0.5" stroke-dasharray="1,1"/><line x1="3" y1="8" x2="13" y2="8" stroke="#ffaa22" stroke-width="0.5" stroke-dasharray="1,1"/></svg></div>
+          <span class="qty-label">Constrained</span>
+          <span class="qty-source">MiniZinc</span>
+        </div>
+        <div class="qty-kind" data-kind="encoded">
+          <div class="qty-glyph"><svg viewBox="0 0 16 16"><text x="2" y="12" font-family="monospace" font-size="9" fill="#006688">01</text></svg></div>
+          <span class="qty-label">Encoded</span>
+          <span class="qty-source">representation</span>
+        </div>
+        <div class="qty-kind" data-kind="executed">
+          <div class="qty-glyph"><svg viewBox="0 0 16 16"><polygon points="5,3 13,8 5,13" fill="none" stroke="#22cc66" stroke-width="1"/></svg></div>
+          <span class="qty-label">Executed</span>
+          <span class="qty-source">run evidence</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- CENTER COLUMN -->
+  <div class="center-column">
+
+    <!-- HELIX -->
+    <div class="helix-container">
+      <canvas id="helixCanvas"></canvas>
+      <div class="helix-labels">
+        <div class="helix-label left" style="top:5%"><span class="hl-val">DNA</span></div>
+        <div class="helix-label right" style="top:14%"><span class="hl-val">cDNA READS</span></div>
+        <div class="helix-label left" style="top:24%"><span class="hl-val">EXPRESSION</span></div>
+        <div class="helix-label right" style="top:34%"><span class="hl-val">SEMANTICS</span></div>
+        <div class="helix-label left" style="top:44%"><span class="hl-val">BINARY</span></div>
+        <div class="helix-label right" style="top:54%"><span class="hl-val">PTM STATES</span></div>
+        <div class="helix-label left" style="top:64%"><span class="hl-val">POSTERIOR</span></div>
+        <div class="helix-label right" style="top:74%"><span class="hl-val">CONSTRAINTS</span></div>
+        <div class="helix-label left" style="top:86%"><span class="hl-val">MODEL</span></div>
+      </div>
+    </div>
+
+    <!-- PIPELINE -->
+    <div class="pipeline-flow">
+      <div class="pipeline-node" data-stage="bio">Biological Observations</div>
+      <div class="pipeline-connector"></div>
+      <div class="pipeline-node" data-stage="cdna">cDNA Expression Data</div>
+      <div class="pipeline-connector"></div>
+      <div class="pipeline-node" data-stage="validation">Data Validation</div>
+      <div class="pipeline-connector"></div>
+      <div class="pipeline-node" data-stage="expression">Gene Expression</div>
+      <div class="pipeline-connector"></div>
+      <div class="pipeline-node" data-stage="stan">Stan Model</div>
+      <div class="pipeline-connector"></div>
+      <div class="pipeline-node" data-stage="posterior">Posterior State</div>
+      <div class="pipeline-connector"></div>
+      <div class="pipeline-node" data-stage="minizinc">MiniZinc Model</div>
+      <div class="pipeline-connector"></div>
+      <div class="pipeline-node" data-stage="result">Computational Result</div>
+      <div class="pipeline-connector"></div>
+      <div class="pipeline-node" data-stage="viz">Visualizer</div>
+      <div class="pipeline-connector"></div>
+      <div class="pipeline-node" data-stage="model">Human-Readable Model</div>
+    </div>
+
+  </div>
+
+  <!-- RIGHT COLUMN -->
+  <div class="right-column">
+
+    <!-- STAN -->
+    <div class="panel" id="panel-stan">
+      <div class="panel-title"><span class="indicator"></span>Bayesian Inference · Stan</div>
+      <div class="stan-flow">
+        <span class="stan-flow-node">Prior</span>
+        <span class="stan-flow-arrow">→</span>
+        <span class="stan-flow-node">Likelihood</span>
+        <span class="stan-flow-arrow">→</span>
+        <span class="stan-flow-node">Posterior</span>
+      </div>
+      <div class="stan-chart"><canvas id="stanCanvas"></canvas></div>
+      <table class="stan-table">
+        <thead>
+          <tr><th>Parameter</th><th>Mean</th><th>Median</th><th>σ</th><th>R̂</th><th>ESS</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>α</td><td class="num">2.347</td><td class="num">2.341</td><td class="num">0.128</td><td class="num">1.001</td><td class="num">4200</td></tr>
+          <tr><td>β₁</td><td class="num">-0.892</td><td class="num">-0.887</td><td class="num">0.064</td><td class="num">1.002</td><td class="num">3800</td></tr>
+          <tr><td>β₂</td><td class="num">1.156</td><td class="num">1.149</td><td class="num">0.091</td><td class="num">1.001</td><td class="num">4100</td></tr>
+          <tr><td>σ</td><td class="num">0.423</td><td class="num">0.419</td><td class="num">0.032</td><td class="num">1.000</td><td class="num">4500</td></tr>
+          <tr><td>φ</td><td class="num">0.067</td><td class="num">0.065</td><td class="num">0.018</td><td class="num">1.003</td><td class="num">3600</td></tr>
+        </tbody>
+      </table>
+      <div style="font-family:var(--mono);font-size:0.48rem;color:var(--text-label);margin-top:6px;text-align:right;letter-spacing:0.08em;">RUN ID <span style="color:var(--cyan-dim)">BSM-2026-0908-001</span></div>
+    </div>
+
+    <!-- MINIZINC -->
+    <div class="panel" id="panel-minizinc">
+      <div class="panel-title"><span class="indicator"></span>Constraint Solver · MiniZinc</div>
+      <div class="mzn-graph"><canvas id="mznCanvas"></canvas></div>
+      <div class="mzn-notation">
+        minimize <span style="color:var(--cyan)">f</span>(<span style="color:var(--violet)">x</span>) subject to <span style="color:var(--amber)">C</span><sub>1</sub> ∧ <span style="color:var(--amber)">C</span><sub>2</sub> ∧ … ∧ <span style="color:var(--amber)">C</span><sub><span style="font-style:normal;color:var(--text-label)">k</span></sub>
+      </div>
+      <div style="display:flex;justify-content:center;gap:16px;font-family:var(--mono);font-size:0.5rem;color:var(--text-label);letter-spacing:0.1em;text-transform:uppercase;">
+        <span>Variables <span style="color:var(--cyan)">12</span></span>
+        <span>Domains <span style="color:var(--cyan)">3</span></span>
+        <span>Constraints <span style="color:var(--amber)">8</span></span>
+        <span>Objective <span style="color:var(--violet)">1</span></span>
+      </div>
+    </div>
+
+    <!-- QUIPPER -->
+    <div class="panel" id="panel-quipper">
+      <div class="panel-title"><span class="indicator"></span>Quantum Circuit · Quipper</div>
+      <div class="semantic-flow-label">semantic transformation → quantum circuit → quipper</div>
+      <div class="quipper-circuit"><canvas id="quipperCanvas"></canvas></div>
+      <div class="quipper-stats">
+        <div class="quipper-stat">
+          <div class="qs-val">5</div>
+          <div class="qs-label">Qubits</div>
+        </div>
+        <div class="quipper-stat">
+          <div class="qs-val">14</div>
+          <div class="qs-label">Gate Count</div>
+        </div>
+        <div class="quipper-stat">
+          <div class="qs-val">7</div>
+          <div class="qs-label">Circuit Depth</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PTM -->
+    <div class="panel" id="panel-ptm">
+      <div class="panel-title"><span class="indicator"></span>PTM-BIT-PARITY/1</div>
+      <div class="ptm-states" id="ptmStates">
+        <div class="ptm-state current" data-state="q_even">q<sub>even</sub></div>
+        <div class="ptm-state" data-state="q_odd">q<sub>odd</sub></div>
+        <div class="ptm-state accept" data-state="q_accept">q<sub>accept</sub></div>
+      </div>
+      <div class="ptm-tape" id="ptmTape"></div>
+      <div class="divider"></div>
+      <table class="ptm-transition-table">
+        <thead><tr><th>State</th><th>Read</th><th>Write</th><th>Move</th><th>Next</th></tr></thead>
+        <tbody id="ptmTransitions">
+          <tr><td>q<sub>even</sub></td><td>0</td><td>0</td><td>R</td><td>q<sub>even</sub></td></tr>
+          <tr class="active-row"><td>q<sub>even</sub></td><td>1</td><td>1</td><td>R</td><td>q<sub>odd</sub></td></tr>
+          <tr><td>q<sub>odd</sub></td><td>0</td><td>0</td><td>R</td><td>q<sub>odd</sub></td></tr>
+          <tr><td>q<sub>odd</sub></td><td>1</td><td>1</td><td>R</td><td>q<sub>even</sub></td></tr>
+          <tr><td>q<sub>even</sub></td><td>□</td><td>□</td><td>—</td><td>q<sub>accept</sub></td></tr>
+        </tbody>
+      </table>
+      <div class="ptm-complexity">
+        <span>8</span> input symbols · <span>9</span> transitions · <span>O(1)</span> auxiliary storage
+      </div>
+    </div>
+
+  </div>
+
+  <!-- BOTTOM STRIP -->
+  <div class="bottom-strip">
+
+    <!-- BINARY SEMANTICS -->
+    <div class="panel" id="panel-binary">
+      <div class="panel-title"><span class="indicator"></span>Binary Semantics</div>
+      <div class="semantic-flow-label">semantic value → encoding → bits → state → transition</div>
+      <div class="binary-stream" id="binaryStream"></div>
+      <table class="binary-table">
+        <thead><tr><th>State ID</th><th>Tape Pos</th><th>Symbol</th><th>Transition</th><th>Next</th></tr></thead>
+        <tbody>
+          <tr><td>S₀</td><td>0x0000</td><td>0</td><td>δ(S₀,0)</td><td>S₀</td></tr>
+          <tr><td>S₀</td><td>0x0001</td><td>1</td><td>δ(S₀,1)</td><td>S₁</td></tr>
+          <tr><td>S₁</td><td>0x0002</td><td>0</td><td>δ(S₁,0)</td><td>S₁</td></tr>
+          <tr><td>S₁</td><td>0x0003</td><td>1</td><td>δ(S₁,1)</td><td>S₀</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- PROVENANCE -->
+    <div class="panel" id="panel-provenance">
+      <div class="panel-title"><span class="indicator"></span>Immutable Artifact Provenance</div>
+      <div class="prov-chain" id="provChain"></div>
+    </div>
+
+    <!-- RPG/JCL + REPO -->
+    <div class="panel" id="panel-rpg">
+      <div class="panel-title"><span class="indicator"></span>RPG/JCL · Legacy Integration</div>
+      <div class="rpg-block">
+<span class="rpg-comment">//* BIO-SEMANTICS VAULT CONTROL</span>
+<span class="rpg-kw">//BSEM001</span>  <span class="rpg-kw">JOB</span>  <span class="rpg-id">BIOSEM,CLASS=A</span>
+<span class="rpg-kw">//STEP01</span>   <span class="rpg-kw">EXEC</span> <span class="rpg-id">PGM=BSEMVLT</span>
+<span class="rpg-kw">//VAULT</span>    <span class="rpg-kw">DD</span>   <span class="rpg-id">DSN=BSEM.PROV.VAULT,DISP=SHR</span>
+<span class="rpg-kw">//ARCHIVE</span>  <span class="rpg-kw">DD</span>   <span class="rpg-id">DSN=BSEM.ARCH.V001,DISP=NEW</span>
+<span class="rpg-kw">//SYSPRINT</span> <span class="rpg-kw">DD</span>   <span class="rpg-id">SYSOUT=*</span>
+      </div>
+      <div class="rpg-job-status">
+        <span class="rpg-job-id">JOB0001</span><span class="rpg-job-name">BSEM Vault Seal</span><span class="rpg-job-state complete">COMPLETE</span>
+        <span class="rpg-job-id">JOB0002</span><span class="rpg-job-name">Provenance Archive</span><span class="rpg-job-state complete">COMPLETE</span>
+        <span class="rpg-job-id">JOB0003</span><span class="rpg-job-name">Artifact Verify</span><span class="rpg-job-state running">RUNNING</span>
+        <span class="rpg-job-id">JOB0004</span><span class="rpg-job-name">Batch Export</span><span class="rpg-job-state queued">QUEUED</span>
+      </div>
+      <div class="divider"></div>
+      <div class="panel-title" style="margin-top:6px;"><span class="indicator"></span>Repository Structure</div>
+      <div class="repo-tree">
+        <span class="dir">bio-semantics/</span><br>
+        <span class="repo-indent repo-indent-1"></span><span class="dir">src/</span><br>
+        <span class="repo-indent repo-indent-2"></span><span class="file file-py">semantics.py</span><br>
+        <span class="repo-indent repo-indent-2"></span><span class="file file-py">test_semantics.py</span><br>
+        <span class="repo-indent repo-indent-2"></span><span class="file file-html">dashboard.html</span><br>
+        <span class="repo-indent repo-indent-1"></span><span class="dir">spec/</span><br>
+        <span class="repo-indent repo-indent-2"></span><span class="file file-ts">types.ts</span><br>
+        <span class="repo-indent repo-indent-2"></span><span class="file file-md">contract.md</span><br>
+        <span class="repo-indent repo-indent-2"></span><span class="file file-md">system_prompt.md</span><br>
+        <span class="repo-indent repo-indent-1"></span><span class="dir">templates/</span><br>
+        <span class="repo-indent repo-indent-2"></span><span class="file file-rpg">workflow.rpgle</span><br>
+        <span class="repo-indent repo-indent-2"></span><span class="file file-jcl">vault.jcl</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- PROPOSITION -->
+  <div class="proposition">
+    <div class="proposition-line"><span class="prop-subject">Biological Observations</span> <span class="prop-verb">are not the same thing as</span> <span class="prop-subject">Model Inference</span></div>
+    <div class="proposition-line"><span class="prop-subject">Model Inference</span> <span class="prop-verb">is not the same thing as</span> <span class="prop-subject">Semantic Transformation</span></div>
+    <div class="proposition-line"><span class="prop-subject">Semantic Transformation</span> <span class="prop-verb">is not the same thing as</span> <span class="prop-subject">Binary Representation</span></div>
+    <div class="proposition-line"><span class="prop-subject">Binary Representation</span> <span class="prop-verb">can be represented as</span> <span class="prop-subject">Formal Machine State</span></div>
+    <div class="proposition-line"><span class="prop-subject">Formal Machine State</span> <span class="prop-verb">can be verified through</span> <span class="prop-subject">PTM Transitions</span></div>
+    <div class="proposition-line"><span class="prop-subject">Selected Transformations</span> <span class="prop-verb">can be represented through</span> <span class="prop-subject">Quipper</span></div>
+    <div class="proposition-line"><span class="prop-subject">RPG and JCL</span> <span class="prop-verb">provide</span> <span class="prop-subject">Integration Infrastructure</span></div>
+    <div class="proposition-line"><span class="prop-subject">Immutable Provenance</span> <span class="prop-verb">connects</span> <span class="prop-subject">Every Artifact</span></div>
+  </div>
+
+</main>
+
 <script>
-"use strict";
-const $ = id => document.getElementById(id);
-const keys = ["gene_id","sample_id","condition","timepoint"];
-const valueKeys = ["expression_count","normalized_expression"];
-const missing = value => value === null || value === undefined;
-const display = value => missing(value) ? "MISSING" :
-  typeof value === "object" ? JSON.stringify(value) : String(value);
-const token = value => missing(value) ? "missing:" :
-  typeof value + ":" + JSON.stringify(value);
-let report = null, observations = [], selections = {};
-function show(id, value) {
-  $(id).textContent = missing(value) ? "Not supplied" :
-    JSON.stringify(value, null, 2);
-}
-function table(container, rows, columns) {
-  container.replaceChildren();
-  const table = document.createElement("table");
-  const head = document.createElement("thead");
-  const header = document.createElement("tr");
-  for (const name of columns) {
-    const th = document.createElement("th");
-    th.scope = "col"; th.textContent = name; header.append(th);
+// =====================================================
+// BIO-SEMANTICS COMPUTATIONAL FRONTEND
+// =====================================================
+
+const C = {
+  cyan: '#00c8ff',
+  cyanDim: '#006688',
+  blue: '#2266ff',
+  blueBright: '#4488ff',
+  violet: '#8844ff',
+  violetDim: '#5522aa',
+  greenBio: '#22cc66',
+  greenDim: '#0a6630',
+  amber: '#ffaa22',
+  red: '#ff3344',
+  white: '#e8eef6',
+  whiteDim: '#8899aa',
+  bg: '#030810',
+  textLabel: '#4466888'
+};
+
+// =====================================================
+// DNA HELIX
+// =====================================================
+(function initHelix() {
+  const canvas = document.getElementById('helixCanvas');
+  const ctx = canvas.getContext('2d');
+  let W, H, dpr;
+
+  function resize() {
+    const rect = canvas.parentElement.getBoundingClientRect();
+    dpr = window.devicePixelRatio || 1;
+    W = rect.width;
+    H = rect.height;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
-  head.append(header); table.append(head);
-  const body = document.createElement("tbody");
-  for (const row of rows) {
-    const tr = document.createElement("tr");
-    for (const name of columns) {
-      const td = document.createElement("td");
-      td.textContent = display(row[name]); tr.append(td);
-    }
-    body.append(tr);
-  }
-  table.append(body); container.append(table);
-}
-function renderObservations() {
-  const rows = observations.filter(row =>
-    keys.every(key => selections[key] === "" ||
-      token(row[key]) === selections[key]));
-  const unique = key => new Set(rows.filter(row =>
-    !missing(row[key])).map(row => token(row[key]))).size;
-  const absent = rows.reduce((count,row) =>
-    count + valueKeys.filter(key => missing(row[key])).length, 0);
-  $("counts").textContent =
-    `${rows.length} of ${observations.length} observations; ` +
-    `${unique("sample_id")} samples; ${unique("gene_id")} genes; ` +
-    `${unique("condition")} conditions. ` +
-    `${absent} missing cells across expression_count and normalized_expression. ` +
-    `An absent measurement channel counts as missing, not zero.`;
-  table($("observations"), rows, [
-    ...keys,"replicate","expression_count","normalized_expression",
-    "batch","cell_type","measurement_quality","synthetic","source_id"
-  ]);
-}
-function renderFilters() {
-  $("filters").replaceChildren(); selections = {};
-  for (const key of keys) {
-    selections[key] = "";
-    const label = document.createElement("label");
-    label.textContent = key;
-    const select = document.createElement("select");
-    const all = document.createElement("option");
-    all.value = ""; all.textContent = "All"; select.append(all);
-    const values = new Map(observations.map(row =>
-      [token(row[key]), display(row[key])]));
-    for (const [id,name] of values) {
-      const option = document.createElement("option");
-      option.value = id; option.textContent = name; select.append(option);
-    }
-    select.addEventListener("change", () => {
-      selections[key] = select.value; renderObservations();
+  resize();
+  window.addEventListener('resize', resize);
+
+  const BASES = ['A','T','G','C'];
+  const BASE_COLORS = { A: C.greenBio, T: C.red, G: C.amber, C: C.blueBright };
+  const COMPLEMENT = { A: 'T', T: 'A', G: 'C', C: 'G' };
+
+  let time = 0;
+  const particles = [];
+  for (let i = 0; i < 80; i++) {
+    particles.push({
+      y: Math.random() * 1,
+      x: (Math.random() - 0.5) * 0.4,
+      speed: 0.0002 + Math.random() * 0.0003,
+      size: 0.5 + Math.random() * 1.5,
+      alpha: 0.1 + Math.random() * 0.3
     });
-    label.append(select); $("filters").append(label);
   }
-}
-function validate(candidate) {
-  if (!candidate || typeof candidate !== "object" || Array.isArray(candidate))
-    throw Error("Report must be a JSON object.");
-  if (!candidate.dataset ||
-      !Array.isArray(candidate.dataset.observations))
-    throw Error("dataset.observations must be an array.");
-  if (!candidate.dataset.observations.every(row =>
-      row && typeof row === "object" && !Array.isArray(row)))
-    throw Error("Each observation must be an object.");
-  if (!Array.isArray(candidate.models))
-    throw Error("models must be an array, including when empty.");
-  if (!candidate.models.every(model =>
-      model && typeof model === "object" && !Array.isArray(model)))
-    throw Error("Each model must be an object.");
-  for (const row of candidate.dataset.observations) {
-    for (const key of keys) {
-      if (!missing(row[key]) && !["string","number"].includes(typeof row[key]))
-        throw Error(`${key} must be a string, number, or null.`);
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    const cx = W / 2;
+    const amplitude = 45;
+    const rungs = 60;
+    const twist = 0.12;
+    const yStart = 20;
+    const yEnd = H - 20;
+    const totalH = yEnd - yStart;
+
+    // Transformation zones
+    const zones = [
+      { start: 0,    end: 0.12, color1: C.greenBio, color2: C.greenBio, label: 'DNA', rungStyle: 'bio' },
+      { start: 0.12, end: 0.22, color1: C.greenBio, color2: C.cyan,     label: 'cDNA', rungStyle: 'reads' },
+      { start: 0.22, end: 0.32, color1: C.cyan,     color2: C.cyan,     label: 'EXPR', rungStyle: 'expr' },
+      { start: 0.32, end: 0.42, color1: C.cyan,     color2: C.violet,   label: 'SEM', rungStyle: 'semantic' },
+      { start: 0.42, end: 0.52, color1: C.violet,   color2: C.cyanDim,  label: 'BIN', rungStyle: 'binary' },
+      { start: 0.52, end: 0.62, color1: C.cyanDim,  color2: C.cyan,     label: 'PTM', rungStyle: 'state' },
+      { start: 0.62, end: 0.72, color1: C.cyan,     color2: C.violet,   label: 'POST', rungStyle: 'posterior' },
+      { start: 0.72, end: 0.84, color1: C.violet,   color2: C.amber,    label: 'CST', rungStyle: 'constraint' },
+      { start: 0.84, end: 1.00, color1: C.amber,    color2: C.white,    label: 'MDL', rungStyle: 'model' },
+    ];
+
+    function getZone(t) {
+      for (const z of zones) {
+        if (t >= z.start && t < z.end) return z;
+      }
+      return zones[zones.length - 1];
     }
-    for (const key of valueKeys) {
-      if (!missing(row[key]) &&
-          (typeof row[key] !== "number" || !Number.isFinite(row[key])))
-        throw Error(`${key} must be a finite number or null.`);
+
+    function lerpColor(c1, c2, t) {
+      const r1 = parseInt(c1.slice(1,3),16), g1 = parseInt(c1.slice(3,5),16), b1 = parseInt(c1.slice(5,7),16);
+      const r2 = parseInt(c2.slice(1,3),16), g2 = parseInt(c2.slice(3,5),16), b2 = parseInt(c2.slice(5,7),16);
+      const r = Math.round(r1 + (r2-r1)*t), g = Math.round(g1 + (g2-g1)*t), b = Math.round(b1 + (b2-b1)*t);
+      return `rgb(${r},${g},${b})`;
     }
-    if (!missing(row.expression_count) &&
-        (!Number.isSafeInteger(row.expression_count) || row.expression_count < 0))
-      throw Error("expression_count must be a nonnegative safe integer.");
+
+    // Draw backbone strands
+    ctx.lineWidth = 1.2;
+    for (let strand = 0; strand < 2; strand++) {
+      ctx.beginPath();
+      for (let i = 0; i <= 200; i++) {
+        const t = i / 200;
+        const y = yStart + t * totalH;
+        const phase = t * rungs * twist + time + (strand * Math.PI);
+        const x = cx + Math.sin(phase) * amplitude;
+        const zone = getZone(t);
+        const zt = (t - zone.start) / (zone.end - zone.start);
+        const color = lerpColor(zone.color1, zone.color2, zt);
+
+        if (i === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+
+        if (i > 0 && i % 2 === 0) {
+          ctx.strokeStyle = color;
+          ctx.globalAlpha = 0.7;
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+        }
+      }
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    // Draw rungs / connections
+    for (let i = 0; i < rungs; i++) {
+      const t = i / rungs;
+      const y = yStart + t * totalH;
+      const phase = t * rungs * twist + time;
+      const x1 = cx + Math.sin(phase) * amplitude;
+      const x2 = cx + Math.sin(phase + Math.PI) * amplitude;
+      const depth = Math.cos(phase);
+      const zone = getZone(t);
+
+      if (depth > -0.2) {
+        const alpha = 0.15 + depth * 0.35;
+        ctx.globalAlpha = alpha;
+
+        if (zone.rungStyle === 'bio') {
+          const base = BASES[i % 4];
+          const comp = COMPLEMENT[base];
+          ctx.strokeStyle = BASE_COLORS[base];
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(x1, y);
+          ctx.lineTo(cx, y);
+          ctx.stroke();
+          ctx.strokeStyle = BASE_COLORS[comp];
+          ctx.beginPath();
+          ctx.moveTo(cx, y);
+          ctx.lineTo(x2, y);
+          ctx.stroke();
+          // Base pair dots
+          ctx.fillStyle = BASE_COLORS[base];
+          ctx.beginPath();
+          ctx.arc(cx - 4, y, 1.5, 0, Math.PI*2);
+          ctx.fill();
+          ctx.fillStyle = BASE_COLORS[comp];
+          ctx.beginPath();
+          ctx.arc(cx + 4, y, 1.5, 0, Math.PI*2);
+          ctx.fill();
+        } else if (zone.rungStyle === 'binary') {
+          ctx.strokeStyle = C.cyanDim;
+          ctx.lineWidth = 0.5;
+          ctx.beginPath();
+          ctx.moveTo(x1, y);
+          ctx.lineTo(x2, y);
+          ctx.stroke();
+          // Binary values
+          ctx.fillStyle = C.cyan;
+          ctx.font = '8px "IBM Plex Mono"';
+          ctx.textAlign = 'center';
+          const bit = (i + Math.floor(time * 2)) % 2;
+          ctx.fillText(bit.toString(), cx, y + 3);
+        } else if (zone.rungStyle === 'state') {
+          ctx.strokeStyle = C.cyan;
+          ctx.lineWidth = 0.5;
+          ctx.setLineDash([2, 3]);
+          ctx.beginPath();
+          ctx.moveTo(x1, y);
+          ctx.lineTo(x2, y);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          // State node
+          ctx.strokeStyle = C.cyan;
+          ctx.lineWidth = 0.8;
+          ctx.beginPath();
+          ctx.arc(cx, y, 4, 0, Math.PI*2);
+          ctx.stroke();
+        } else if (zone.rungStyle === 'posterior') {
+          const zt = (t - zone.start) / (zone.end - zone.start);
+          ctx.strokeStyle = lerpColor(C.cyan, C.violet, zt);
+          ctx.lineWidth = 0.8;
+          // Probability curve fragment
+          const mid = (x1 + x2) / 2;
+          ctx.beginPath();
+          ctx.moveTo(x1, y);
+          const cpx = mid;
+          const cpy = y - 5 * Math.sin(i * 0.8);
+          ctx.quadraticCurveTo(cpx, cpy, x2, y);
+          ctx.stroke();
+        } else if (zone.rungStyle === 'constraint') {
+          ctx.strokeStyle = C.amber;
+          ctx.lineWidth = 0.5;
+          ctx.beginPath();
+          ctx.moveTo(x1, y);
+          ctx.lineTo(x2, y);
+          ctx.stroke();
+          // Constraint node
+          ctx.strokeStyle = C.amber;
+          ctx.lineWidth = 0.6;
+          const s = 3;
+          ctx.strokeRect(cx - s, y - s, s * 2, s * 2);
+        } else {
+          const zt = (t - zone.start) / (zone.end - zone.start);
+          ctx.strokeStyle = lerpColor(zone.color1, zone.color2, zt);
+          ctx.lineWidth = 0.6;
+          ctx.beginPath();
+          ctx.moveTo(x1, y);
+          ctx.lineTo(x2, y);
+          ctx.stroke();
+        }
+      }
+    }
+    ctx.globalAlpha = 1;
+
+    // Flowing particles
+    for (const p of particles) {
+      p.y += p.speed;
+      if (p.y > 1) p.y -= 1;
+      const y = yStart + p.y * totalH;
+      const phase = p.y * rungs * twist + time;
+      const x = cx + Math.sin(phase + p.x * 6) * (amplitude * 0.6 + p.x * amplitude);
+      const zone = getZone(p.y);
+      const zt = (p.y - zone.start) / (zone.end - zone.start);
+      ctx.fillStyle = lerpColor(zone.color1, zone.color2, zt);
+      ctx.globalAlpha = p.alpha;
+      ctx.beginPath();
+      ctx.arc(x, y, p.size, 0, Math.PI*2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    // Scanline
+    const scanY = yStart + ((time * 40) % totalH);
+    const scanGrad = ctx.createLinearGradient(0, scanY - 15, 0, scanY + 15);
+    scanGrad.addColorStop(0, 'rgba(0,200,255,0)');
+    scanGrad.addColorStop(0.5, 'rgba(0,200,255,0.05)');
+    scanGrad.addColorStop(1, 'rgba(0,200,255,0)');
+    ctx.fillStyle = scanGrad;
+    ctx.fillRect(0, scanY - 15, W, 30);
+
+    time += 0.008;
+    requestAnimationFrame(draw);
   }
-}
-function render() {
-  observations = report.dataset.observations;
-  renderFilters(); renderObservations();
-  show("sequencing", {
-    dataset_id: report.dataset.id ?? null,
-    synthetic: report.dataset.synthetic ?? "undeclared",
-    sequencing: report.dataset.sequencing ?? null,
-    quality: report.dataset.quality ?? null,
-    preprocessing: report.dataset.preprocessing ?? null
+  draw();
+})();
+
+// =====================================================
+// SEQUENCING TRACE
+// =====================================================
+(function initSeqTrace() {
+  const container = document.getElementById('seqTrace');
+  const bases = 'ATCGATCGATTGCCATGCAATCGGATCGATTGCCATGCAATCGGATCGATTGCCATGCAATCGGATCGATCGATCGATCGGA';
+  const baseClass = { A: 'a', T: 't', G: 'g', C: 'c' };
+  for (let i = 0; i < bases.length; i++) {
+    const bar = document.createElement('div');
+    bar.className = `seq-bar ${baseClass[bases[i]]}`;
+    bar.style.height = (8 + Math.random() * 24) + 'px';
+    container.appendChild(bar);
+  }
+
+  const readsEl = document.getElementById('seqReads');
+  const reads = [
+    'ATCGATCGATTGCCATGCAA',
+    '   GATCGATTGCCATGCAATCGG',
+    '      CGATTGCCATGCAATCGGATCG',
+    '         TTGCCATGCAATCGGATCGATT'
+  ];
+  reads.forEach(read => {
+    const line = document.createElement('div');
+    let html = '';
+    for (const ch of read) {
+      if (ch === ' ') { html += '&nbsp;'; continue; }
+      const cls = baseClass[ch] || '';
+      html += `<span class="base ${cls}">${ch}</span>`;
+    }
+    line.innerHTML = html;
+    readsEl.appendChild(line);
   });
-  show("models", report.models.map(model => ({
-    id: model.id ?? null, status: model.status ?? "not supplied",
-    assumptions: model.assumptions ?? null,
-    structure: model.structure ?? null, priors: model.priors ?? null,
-    likelihood: model.likelihood ?? null, fit: model.fit ?? null,
-    limitations: model.limitations ?? null
-  })));
-  show("parameters", report.models.map(model => ({
-    id: model.id ?? null, parameters: model.parameters ?? null,
-    dimensions: model.dimensions ?? null, priors: model.priors ?? null
-  })));
-  show("posteriors", report.models.map(model => ({
-    id: model.id ?? null, status: model.status ?? "not supplied",
-    summary: model.summary ?? null,
-    diagnostics: model.diagnostics ?? null,
-    uncertainty_status: model.summary ?
-      "Inspect supplied intervals, standard deviations and diagnostics; viewer has not validated them." :
-      "No posterior summary supplied."
-  })));
-  show("predictions", report.models.map(model => ({
-    id: model.id ?? null, predictions: model.predictions ?? null
-  })));
-  for (const key of ["constraints","binary","ptm","quipper","artifacts","stages"])
-    show(key, report[key]);
-  $("state").textContent =
-    "Report loaded. Observation filters do not refit models or change posterior summaries. " +
-    "Model comparison is descriptive; no biological explanation is selected.";
-}
-let loadNumber = 0;
-$("file").addEventListener("change", async event => {
-  const current = ++loadNumber;
-  const file = event.target.files[0];
-  if (!file) return;
-  $("error").textContent = "";
-  try {
-    if (file.size > 10 * 1024 * 1024)
-      throw Error("Report exceeds this viewer's 10 MiB import limit.");
-    const candidate = JSON.parse(await file.text());
-    if (current !== loadNumber) return;
-    validate(candidate); report = candidate; render();
-  } catch (error) {
-    if (current !== loadNumber) return;
-    $("error").textContent = error.message;
-    $("state").textContent =
-      report ? "Import rejected. Previous report remains displayed." :
-               "Import rejected. No report loaded.";
+})();
+
+// =====================================================
+// EXPRESSION MATRIX
+// =====================================================
+(function initExprMatrix() {
+  const container = document.getElementById('exprMatrix');
+  const rows = 16;
+  const cols = 24;
+  container.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'expr-cell';
+      const v = Math.random();
+      const hue = 200 + v * 80;
+      const sat = 60 + v * 30;
+      const light = 5 + v * 35;
+      cell.style.background = `hsl(${hue}, ${sat}%, ${light}%)`;
+      container.appendChild(cell);
+    }
   }
+})();
+
+// =====================================================
+// BINARY STREAM
+// =====================================================
+(function initBinaryStream() {
+  const container = document.getElementById('binaryStream');
+  let html = '';
+  for (let i = 0; i < 256; i++) {
+    const bit = Math.random() > 0.5 ? 1 : 0;
+    html += `<span class="${bit ? 'one' : 'zero'}">${bit}</span>`;
+    if ((i + 1) % 8 === 0) html += ' ';
+  }
+  container.innerHTML = html;
+
+  // Animate binary stream
+  setInterval(() => {
+    const spans = container.querySelectorAll('span');
+    const idx = Math.floor(Math.random() * spans.length);
+    if (spans[idx] && spans[idx].textContent.trim().length === 1) {
+      const newBit = Math.random() > 0.5 ? 1 : 0;
+      spans[idx].textContent = newBit.toString();
+      spans[idx].className = newBit ? 'one' : 'zero';
+    }
+  }, 100);
+})();
+
+// =====================================================
+// PTM TAPE
+// =====================================================
+(function initPTM() {
+  const container = document.getElementById('ptmTape');
+  const tape = [0, 1, 0, 1, 1, 0, 1, 0];
+  let headPos = 0;
+  let state = 'q_even';
+
+  function render() {
+    container.innerHTML = '';
+    tape.forEach((bit, i) => {
+      const cell = document.createElement('div');
+      cell.className = 'ptm-cell' + (i === headPos ? ' active' : '');
+      cell.textContent = bit;
+      if (i === headPos) {
+        const head = document.createElement('div');
+        head.className = 'ptm-head';
+        cell.appendChild(head);
+      }
+      container.appendChild(cell);
+    });
+
+    document.querySelectorAll('.ptm-state').forEach(el => {
+      el.classList.toggle('current', el.dataset.state === state);
+    });
+  }
+
+  render();
+
+  setInterval(() => {
+    if (headPos < tape.length) {
+      const bit = tape[headPos];
+      if (bit === 1) {
+        state = state === 'q_even' ? 'q_odd' : 'q_even';
+      }
+      headPos++;
+      if (headPos >= tape.length) {
+        state = 'q_accept';
+        setTimeout(() => { headPos = 0; state = 'q_even'; render(); }, 2000);
+      }
+      render();
+    }
+  }, 800);
+})();
+
+// =====================================================
+// PROVENANCE CHAIN
+// =====================================================
+(function initProvenance() {
+  const container = document.getElementById('provChain');
+  const chain = [
+    { name: 'Source', hash: 'a7f3e9c2d1b8' },
+    { name: 'Hash', hash: '4e2a8f1c7d39' },
+    { name: 'Semantics', hash: 'b8d4f2e6a1c5' },
+    { name: 'Encoding', hash: 'c1e7a3f9d5b2' },
+    { name: 'PTM', hash: '3f9b2e8c1d7a' },
+    { name: 'Stan', hash: 'd5a1c8f3e7b4' },
+    { name: 'MiniZinc', hash: 'e2c6b9d4f1a8' },
+    { name: 'Quipper', hash: 'f8d3a7e1c2b5' },
+    { name: 'Result', hash: '1b5e9a3f7d2c' },
+  ];
+
+  chain.forEach((item, i) => {
+    const node = document.createElement('div');
+    node.className = 'prov-node';
+    node.innerHTML = `
+      <div class="prov-icon"></div>
+      <div class="prov-name">${item.name}</div>
+      <div class="prov-hash">${item.hash}…${(parseInt(item.hash.slice(0,4),16) % 9999).toString().padStart(4,'0')}</div>
+    `;
+
+    node.addEventListener('click', () => {
+      const existing = node.nextElementSibling;
+      if (existing && existing.classList.contains('prov-detail')) {
+        existing.style.display = existing.style.display === 'none' ? 'block' : 'none';
+        return;
+      }
+      const detail = document.createElement('div');
+      detail.className = 'prov-detail';
+      detail.style.display = 'block';
+      detail.innerHTML = `
+        <span class="pd-key">artifact id</span> <span class="pd-val">BSM-${item.name.toUpperCase()}-${String(i+1).padStart(3,'0')}</span><br>
+        <span class="pd-key">hash</span> <span class="pd-val">sha256:${item.hash}e4f8a2c1d7b3…</span><br>
+        <span class="pd-key">version</span> <span class="pd-val">1.0.${i}</span><br>
+        <span class="pd-key">parent</span> <span class="pd-val">${i > 0 ? chain[i-1].hash + '…' : '∅ (root)'}</span><br>
+        <span class="pd-key">timestamp</span> <span class="pd-val">2026-09-08T${String(10+i).padStart(2,'0')}:${String(i*7%60).padStart(2,'0')}:00Z</span><br>
+        <span class="pd-key">status</span> <span class="pd-val" style="color:#22cc66">SEALED</span>
+      `;
+      node.after(detail);
+    });
+
+    container.appendChild(node);
+
+    if (i < chain.length - 1) {
+      const conn = document.createElement('div');
+      conn.className = 'prov-connector';
+      container.appendChild(conn);
+    }
+  });
+})();
+
+// =====================================================
+// STAN POSTERIOR VISUALIZATION
+// =====================================================
+(function initStan() {
+  const canvas = document.getElementById('stanCanvas');
+  const ctx = canvas.getContext('2d');
+  const rect = canvas.parentElement.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const W = rect.width;
+  const H = rect.height;
+
+  function gaussian(x, mu, sigma) {
+    return Math.exp(-0.5 * ((x - mu) / sigma) ** 2) / (sigma * Math.sqrt(2 * Math.PI));
+  }
+
+  // Posterior samples
+  const samples = [];
+  for (let i = 0; i < 200; i++) {
+    samples.push({
+      x: 0.15 + Math.random() * 0.7,
+      y: Math.random(),
+      alpha: 0.05 + Math.random() * 0.15,
+      size: 0.8 + Math.random() * 1.2
+    });
+  }
+
+  let time = 0;
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    // Posterior sample particles
+    samples.forEach(s => {
+      ctx.globalAlpha = s.alpha * (0.5 + 0.5 * Math.sin(time * 0.5 + s.x * 10));
+      ctx.fillStyle = C.violet;
+      ctx.beginPath();
+      ctx.arc(s.x * W, (0.3 + s.y * 0.6) * H, s.size, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+
+    // Prior (wider, dimmer)
+    ctx.beginPath();
+    ctx.strokeStyle = C.cyanDim;
+    ctx.lineWidth = 0.8;
+    ctx.setLineDash([3, 3]);
+    for (let i = 0; i <= 100; i++) {
+      const x = i / 100;
+      const val = gaussian(x, 0.5, 0.2);
+      const px = x * W;
+      const py = H - (val / 2.5) * H * 0.8 - 5;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Likelihood
+    ctx.beginPath();
+    ctx.strokeStyle = C.blue;
+    ctx.lineWidth = 0.8;
+    ctx.setLineDash([1, 2]);
+    for (let i = 0; i <= 100; i++) {
+      const x = i / 100;
+      const val = gaussian(x, 0.55, 0.12);
+      const px = x * W;
+      const py = H - (val / 3.5) * H * 0.8 - 5;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Posterior (sharp, bright)
+    ctx.beginPath();
+    ctx.strokeStyle = C.cyan;
+    ctx.lineWidth = 1.5;
+    for (let i = 0; i <= 100; i++) {
+      const x = i / 100;
+      const val = gaussian(x, 0.53, 0.09);
+      const px = x * W;
+      const py = H - (val / 4.5) * H * 0.8 - 5;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+
+    // Posterior fill
+    ctx.beginPath();
+    for (let i = 0; i <= 100; i++) {
+      const x = i / 100;
+      const val = gaussian(x, 0.53, 0.09);
+      const px = x * W;
+      const py = H - (val / 4.5) * H * 0.8 - 5;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.lineTo(W, H);
+    ctx.lineTo(0, H);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(0,200,255,0.06)';
+    ctx.fill();
+
+    // Credible interval
+    const ci_low = 0.53 - 0.09 * 1.96;
+    const ci_high = 0.53 + 0.09 * 1.96;
+    ctx.strokeStyle = C.violet;
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(ci_low * W, H - 5);
+    ctx.lineTo(ci_low * W, H - 20);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(ci_high * W, H - 5);
+    ctx.lineTo(ci_high * W, H - 20);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(136,68,255,0.4)';
+    ctx.setLineDash([2, 2]);
+    ctx.beginPath();
+    ctx.moveTo(ci_low * W, H - 12);
+    ctx.lineTo(ci_high * W, H - 12);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Labels
+    ctx.font = '8px "IBM Plex Mono"';
+    ctx.fillStyle = C.cyanDim;
+    ctx.textAlign = 'right';
+    ctx.fillText('PRIOR', W * 0.28, 16);
+    ctx.fillStyle = C.blue;
+    ctx.fillText('LIKELIHOOD', W * 0.78, 25);
+    ctx.fillStyle = C.cyan;
+    ctx.textAlign = 'center';
+    ctx.fillText('POSTERIOR', W * 0.53, 12);
+    ctx.fillStyle = C.violet;
+    ctx.font = '7px "IBM Plex Mono"';
+    ctx.fillText('95% CI', (ci_low + ci_high) / 2 * W, H - 16);
+
+    time += 0.02;
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// =====================================================
+// MINIZINC CONSTRAINT GRAPH
+// =====================================================
+(function initMzn() {
+  const canvas = document.getElementById('mznCanvas');
+  const ctx = canvas.getContext('2d');
+  const rect = canvas.parentElement.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const W = rect.width;
+  const H = rect.height;
+
+  const nodes = [
+    { x: 0.2, y: 0.25, label: 'x₁', type: 'var', color: C.cyan },
+    { x: 0.4, y: 0.15, label: 'x₂', type: 'var', color: C.cyan },
+    { x: 0.6, y: 0.2, label: 'x₃', type: 'var', color: C.cyan },
+    { x: 0.8, y: 0.3, label: 'x₄', type: 'var', color: C.cyan },
+    { x: 0.15, y: 0.6, label: 'C₁', type: 'con', color: C.amber },
+    { x: 0.38, y: 0.55, label: 'C₂', type: 'con', color: C.amber },
+    { x: 0.62, y: 0.6, label: 'C₃', type: 'con', color: C.amber },
+    { x: 0.85, y: 0.55, label: 'C₄', type: 'con', color: C.amber },
+    { x: 0.3, y: 0.85, label: 'D₁', type: 'dom', color: C.violet },
+    { x: 0.7, y: 0.85, label: 'D₂', type: 'dom', color: C.violet },
+    { x: 0.5, y: 0.42, label: 'obj', type: 'obj', color: C.greenBio },
+  ];
+
+  const edges = [
+    [0,4],[0,5],[1,5],[1,6],[2,6],[2,7],[3,7],[3,4],
+    [4,8],[5,8],[6,9],[7,9],
+    [0,10],[1,10],[2,10],[3,10],
+  ];
+
+  let time = 0;
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    // Feasible space
+    ctx.beginPath();
+    ctx.moveTo(nodes[0].x * W, nodes[0].y * H);
+    ctx.lineTo(nodes[1].x * W, nodes[1].y * H);
+    ctx.lineTo(nodes[2].x * W, nodes[2].y * H);
+    ctx.lineTo(nodes[3].x * W, nodes[3].y * H);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(0,200,255,0.03)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,200,255,0.08)';
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
+
+    // Edges
+    edges.forEach(([a, b], i) => {
+      const na = nodes[a], nb = nodes[b];
+      ctx.beginPath();
+      ctx.moveTo(na.x * W, na.y * H);
+      ctx.lineTo(nb.x * W, nb.y * H);
+      ctx.strokeStyle = 'rgba(0,200,255,0.15)';
+      ctx.lineWidth = 0.6;
+      ctx.stroke();
+
+      // Animated pulse
+      const t = ((time * 0.3 + i * 0.15) % 1);
+      const px = na.x + (nb.x - na.x) * t;
+      const py = na.y + (nb.y - na.y) * t;
+      ctx.beginPath();
+      ctx.arc(px * W, py * H, 1.5, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(0,200,255,${0.5 - t * 0.5})`;
+      ctx.fill();
+    });
+
+    // Nodes
+    nodes.forEach(n => {
+      const x = n.x * W, y = n.y * H;
+      const r = n.type === 'obj' ? 10 : n.type === 'con' ? 7 : 8;
+
+      if (n.type === 'con') {
+        ctx.beginPath();
+        ctx.rect(x - r, y - r, r * 2, r * 2);
+        ctx.fillStyle = 'rgba(255,170,34,0.08)';
+        ctx.fill();
+        ctx.strokeStyle = n.color;
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+      } else if (n.type === 'obj') {
+        ctx.beginPath();
+        ctx.moveTo(x, y - r);
+        ctx.lineTo(x + r, y + r * 0.6);
+        ctx.lineTo(x - r, y + r * 0.6);
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(34,204,102,0.08)';
+        ctx.fill();
+        ctx.strokeStyle = n.color;
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+      } else {
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(0,200,255,0.06)';
+        ctx.fill();
+        ctx.strokeStyle = n.color;
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = n.color;
+      ctx.font = '9px "IBM Plex Mono"';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(n.label, x, y);
+    });
+
+    // Legend
+    ctx.font = '7px "IBM Plex Mono"';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = C.cyan;
+    ctx.fillText('○ VARIABLE', 4, H - 24);
+    ctx.fillStyle = C.amber;
+    ctx.fillText('□ CONSTRAINT', 4, H - 14);
+    ctx.fillStyle = C.violet;
+    ctx.fillText('○ DOMAIN', 4, H - 4);
+    ctx.fillStyle = C.greenBio;
+    ctx.textAlign = 'right';
+    ctx.fillText('△ OBJECTIVE', W - 4, H - 4);
+
+    time += 0.008;
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// =====================================================
+// QUIPPER CIRCUIT
+// =====================================================
+(function initQuipper() {
+  const canvas = document.getElementById('quipperCanvas');
+  const ctx = canvas.getContext('2d');
+  const rect = canvas.parentElement.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const W = rect.width;
+  const H = rect.height;
+
+  const qubits = 5;
+  const wireY = (i) => 18 + i * (H - 36) / (qubits - 1);
+  const gateX = (i) => 40 + i * ((W - 60) / 7);
+
+  const gates = [
+    { type: 'H', qubit: 0, col: 0 },
+    { type: 'H', qubit: 1, col: 0 },
+    { type: 'CNOT', control: 0, target: 2, col: 1 },
+    { type: 'T', qubit: 1, col: 2 },
+    { type: 'CNOT', control: 2, target: 3, col: 2 },
+    { type: 'S', qubit: 0, col: 3 },
+    { type: 'H', qubit: 4, col: 3 },
+    { type: 'CNOT', control: 4, target: 1, col: 4 },
+    { type: 'T', qubit: 3, col: 4 },
+    { type: 'CNOT', control: 1, target: 4, col: 5 },
+    { type: 'H', qubit: 2, col: 5 },
+    { type: 'M', qubit: 0, col: 6 },
+    { type: 'M', qubit: 3, col: 6 },
+    { type: 'M', qubit: 4, col: 7 },
+  ];
+
+  let time = 0;
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    // Qubit wires
+    for (let i = 0; i < qubits; i++) {
+      const y = wireY(i);
+      ctx.beginPath();
+      ctx.moveTo(10, y);
+      ctx.lineTo(W - 10, y);
+      ctx.strokeStyle = 'rgba(0,200,255,0.15)';
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+
+      // Qubit labels
+      ctx.fillStyle = C.cyanDim;
+      ctx.font = '8px "IBM Plex Mono"';
+      ctx.textAlign = 'right';
+      ctx.fillText(`q${i}`, 18, y + 3);
+    }
+
+    // Gates
+    gates.forEach((g, gi) => {
+      const x = gateX(g.col);
+      const pulse = 0.7 + 0.3 * Math.sin(time * 2 + gi * 0.5);
+
+      if (g.type === 'CNOT') {
+        const cy = wireY(g.control);
+        const ty = wireY(g.target);
+        // Control-target line
+        ctx.beginPath();
+        ctx.moveTo(x, cy);
+        ctx.lineTo(x, ty);
+        ctx.strokeStyle = `rgba(136,68,255,${0.4 * pulse})`;
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+        // Control dot
+        ctx.beginPath();
+        ctx.arc(x, cy, 3, 0, Math.PI * 2);
+        ctx.fillStyle = C.violet;
+        ctx.fill();
+        // Target circle
+        ctx.beginPath();
+        ctx.arc(x, ty, 7, 0, Math.PI * 2);
+        ctx.strokeStyle = C.violet;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x - 7, ty);
+        ctx.lineTo(x + 7, ty);
+        ctx.moveTo(x, ty - 7);
+        ctx.lineTo(x, ty + 7);
+        ctx.strokeStyle = `rgba(136,68,255,${0.5 * pulse})`;
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+      } else if (g.type === 'M') {
+        const y = wireY(g.qubit);
+        ctx.strokeStyle = C.cyan;
+        ctx.lineWidth = 0.8;
+        ctx.strokeRect(x - 10, y - 8, 20, 16);
+        // Meter arc
+        ctx.beginPath();
+        ctx.arc(x, y + 2, 5, Math.PI, 0);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x, y + 2);
+        ctx.lineTo(x + 4, y - 4);
+        ctx.stroke();
+        // Double line out
+        ctx.beginPath();
+        ctx.moveTo(x, y + 8);
+        ctx.lineTo(x, y + 14);
+        ctx.strokeStyle = 'rgba(0,200,255,0.3)';
+        ctx.stroke();
+      } else {
+        const y = wireY(g.qubit);
+        const boxW = 18, boxH = 16;
+        ctx.fillStyle = `rgba(136,68,255,${0.08 * pulse})`;
+        ctx.fillRect(x - boxW/2, y - boxH/2, boxW, boxH);
+        ctx.strokeStyle = `rgba(136,68,255,${0.6 * pulse})`;
+        ctx.lineWidth = 0.8;
+        ctx.strokeRect(x - boxW/2, y - boxH/2, boxW, boxH);
+        ctx.fillStyle = C.violet;
+        ctx.font = '9px "IBM Plex Mono"';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(g.type, x, y);
+      }
+    });
+
+    // Animated photon
+    const photonX = 10 + ((time * 60) % (W - 20));
+    for (let i = 0; i < qubits; i++) {
+      ctx.beginPath();
+      ctx.arc(photonX, wireY(i), 2, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(136,68,255,${0.3 + 0.2 * Math.sin(time * 3 + i)})`;
+      ctx.fill();
+    }
+
+    time += 0.016;
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// =====================================================
+// NAV INTERACTION
+// =====================================================
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    item.classList.add('active');
+
+    const target = item.dataset.target;
+    const panelMap = {
+      observations: ['panel-cdna', 'panel-expression'],
+      semantics: ['panel-qtykind', 'panel-validation'],
+      bayesian: ['panel-stan'],
+      constraints: ['panel-minizinc'],
+      binary: ['panel-binary'],
+      ptm: ['panel-ptm'],
+      quipper: ['panel-quipper'],
+      provenance: ['panel-provenance'],
+      rpgjcl: ['panel-rpg'],
+    };
+
+    // Highlight relevant panels
+    document.querySelectorAll('.panel').forEach(p => {
+      p.style.borderColor = '';
+      p.style.boxShadow = '';
+    });
+
+    const targets = panelMap[target] || [];
+    targets.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.style.borderColor = 'rgba(0,200,255,0.4)';
+        el.style.boxShadow = '0 0 12px rgba(0,200,255,0.15), 0 0 30px rgba(0,200,255,0.05)';
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    });
+  });
 });
-for (const id of ["models","parameters","posteriors","predictions",
-                  "constraints","binary","ptm","quipper","artifacts","stages"])
-  show(id, null);
+
+// =====================================================
+// PIPELINE NODE INTERACTION
+// =====================================================
+document.querySelectorAll('.pipeline-node').forEach(node => {
+  node.addEventListener('click', () => {
+    document.querySelectorAll('.pipeline-node').forEach(n => n.classList.remove('active'));
+    node.classList.add('active');
+  });
+});
+
+// =====================================================
+// QUANTITY KIND INTERACTION
+// =====================================================
+document.querySelectorAll('.qty-kind').forEach(kind => {
+  kind.addEventListener('click', () => {
+    const wasActive = kind.classList.contains('active');
+    document.querySelectorAll('.qty-kind').forEach(k => k.classList.remove('active'));
+    if (!wasActive) kind.classList.add('active');
+
+    // Highlight related panel
+    const kindName = kind.dataset.kind;
+    document.querySelectorAll('.panel').forEach(p => {
+      p.style.borderColor = '';
+      p.style.boxShadow = '';
+    });
+
+    const highlight = {
+      observed: 'panel-cdna',
+      inferred: 'panel-stan',
+      derived: 'panel-expression',
+      predicted: 'panel-stan',
+      constrained: 'panel-minizinc',
+      encoded: 'panel-binary',
+      executed: 'panel-ptm',
+    };
+
+    if (!wasActive && highlight[kindName]) {
+      const el = document.getElementById(highlight[kindName]);
+      if (el) {
+        el.style.borderColor = 'rgba(0,200,255,0.4)';
+        el.style.boxShadow = '0 0 12px rgba(0,200,255,0.15), 0 0 30px rgba(0,200,255,0.05)';
+      }
+    }
+  });
+});
+
+// =====================================================
+// AMBIENT GRID ANIMATION
+// =====================================================
+(function ambientScan() {
+  let scanEl = document.createElement('div');
+  scanEl.style.cssText = `
+    position: fixed; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(0,200,255,0.08), transparent);
+    pointer-events: none; z-index: 100;
+    animation: ambient-scan 8s linear infinite;
+  `;
+  document.body.appendChild(scanEl);
+
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes ambient-scan {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(100vh); }
+    }
+  `;
+  document.head.appendChild(style);
+})();
+
 </script>
+</body>
 </html>
