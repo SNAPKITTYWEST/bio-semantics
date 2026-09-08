@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gene-expression semantic report</title>
+<style>
+:root{font:16px system-ui;color:#182536;background:#eef2f6}
+body{max-width:1200px;margin:auto;padding:24px}
+h1{margin-bottom:8px}h2{font-size:1.15rem}
+header,section{background:white;border:1px solid #ced7e0;border-radius:12px;padding:20px;margin-bottom:16px}
+label{display:inline-flex;flex-direction:column;gap:5px;margin:8px 12px 8px 0}
+select,input{font:inherit;max-width:100%;padding:7px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
+.grid section{min-width:0}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f4f6f8;padding:12px}
+.scroll{overflow:auto;max-height:420px}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th,td{text-align:left;border-bottom:1px solid #ddd;padding:8px;vertical-align:top}
+.tag{display:inline-block;border:1px solid;padding:3px 8px;border-radius:5px;font-size:.8rem}
+.notice{color:#614700;background:#fff5d6;padding:12px}
+#error{color:#9c1927}
+</style>
+<header>
+<h1>Gene-expression semantic report</h1>
+<p>Observed measurements, inferred results, and computational representations retain their declared meaning.</p>
+<label>Open report JSON<input id="file" type="file" accept=".json,application/json"></label>
+<p id="error" role="alert"></p>
+<p id="state" aria-live="polite">No report loaded. No analysis has been executed.</p>
+<p class="notice">This viewer displays supplied artifacts. Importing a report does not verify provenance, run native tools, establish convergence, or execute a quantum circuit.</p>
+</header>
+<section>
+<h2>Observations</h2><span class="tag">OBSERVED — as declared by the report</span>
+<div id="filters"></div><p id="counts"></p>
+<div id="observations" class="scroll"></div>
+<h3>Sequencing and quality metadata</h3><pre id="sequencing">Not supplied</pre>
+</section>
+<div class="grid">
+<section><h2>Biological model and comparison</h2><pre id="models"></pre></section>
+<section><h2>Parameters</h2><span class="tag">UNKNOWN / PRIOR</span><pre id="parameters"></pre></section>
+<section><h2>Posteriors</h2><span class="tag">INFERRED</span><pre id="posteriors"></pre><h3>Predictions</h3><span class="tag">PREDICTED</span><pre id="predictions"></pre></section>
+<section><h2>Constraints</h2><span class="tag">CONSTRAINED</span><pre id="constraints"></pre></section>
+<section><h2>Binary semantics</h2><span class="tag">ENCODED</span><pre id="binary"></pre></section>
+<section><h2>PTM</h2><pre id="ptm"></pre></section>
+<section><h2>Quipper</h2><pre id="quipper"></pre></section>
+<section><h2>Provenance</h2><pre id="artifacts"></pre><h3>Stage execution records</h3><pre id="stages"></pre></section>
+</div>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const keys = ["gene_id","sample_id","condition","timepoint"];
+const valueKeys = ["expression_count","normalized_expression"];
+const missing = value => value === null || value === undefined;
+const display = value => missing(value) ? "MISSING" :
+  typeof value === "object" ? JSON.stringify(value) : String(value);
+const token = value => missing(value) ? "missing:" :
+  typeof value + ":" + JSON.stringify(value);
+let report = null, observations = [], selections = {};
+function show(id, value) {
+  $(id).textContent = missing(value) ? "Not supplied" :
+    JSON.stringify(value, null, 2);
+}
+function table(container, rows, columns) {
+  container.replaceChildren();
+  const table = document.createElement("table");
+  const head = document.createElement("thead");
+  const header = document.createElement("tr");
+  for (const name of columns) {
+    const th = document.createElement("th");
+    th.scope = "col"; th.textContent = name; header.append(th);
+  }
+  head.append(header); table.append(head);
+  const body = document.createElement("tbody");
+  for (const row of rows) {
+    const tr = document.createElement("tr");
+    for (const name of columns) {
+      const td = document.createElement("td");
+      td.textContent = display(row[name]); tr.append(td);
+    }
+    body.append(tr);
+  }
+  table.append(body); container.append(table);
+}
+function renderObservations() {
+  const rows = observations.filter(row =>
+    keys.every(key => selections[key] === "" ||
+      token(row[key]) === selections[key]));
+  const unique = key => new Set(rows.filter(row =>
+    !missing(row[key])).map(row => token(row[key]))).size;
+  const absent = rows.reduce((count,row) =>
+    count + valueKeys.filter(key => missing(row[key])).length, 0);
+  $("counts").textContent =
+    `${rows.length} of ${observations.length} observations; ` +
+    `${unique("sample_id")} samples; ${unique("gene_id")} genes; ` +
+    `${unique("condition")} conditions. ` +
+    `${absent} missing cells across expression_count and normalized_expression. ` +
+    `An absent measurement channel counts as missing, not zero.`;
+  table($("observations"), rows, [
+    ...keys,"replicate","expression_count","normalized_expression",
+    "batch","cell_type","measurement_quality","synthetic","source_id"
+  ]);
+}
+function renderFilters() {
+  $("filters").replaceChildren(); selections = {};
+  for (const key of keys) {
+    selections[key] = "";
+    const label = document.createElement("label");
+    label.textContent = key;
+    const select = document.createElement("select");
+    const all = document.createElement("option");
+    all.value = ""; all.textContent = "All"; select.append(all);
+    const values = new Map(observations.map(row =>
+      [token(row[key]), display(row[key])]));
+    for (const [id,name] of values) {
+      const option = document.createElement("option");
+      option.value = id; option.textContent = name; select.append(option);
+    }
+    select.addEventListener("change", () => {
+      selections[key] = select.value; renderObservations();
+    });
+    label.append(select); $("filters").append(label);
+  }
+}
+function validate(candidate) {
+  if (!candidate || typeof candidate !== "object" || Array.isArray(candidate))
+    throw Error("Report must be a JSON object.");
+  if (!candidate.dataset ||
+      !Array.isArray(candidate.dataset.observations))
+    throw Error("dataset.observations must be an array.");
+  if (!candidate.dataset.observations.every(row =>
+      row && typeof row === "object" && !Array.isArray(row)))
+    throw Error("Each observation must be an object.");
+  if (!Array.isArray(candidate.models))
+    throw Error("models must be an array, including when empty.");
+  if (!candidate.models.every(model =>
+      model && typeof model === "object" && !Array.isArray(model)))
+    throw Error("Each model must be an object.");
+  for (const row of candidate.dataset.observations) {
+    for (const key of keys) {
+      if (!missing(row[key]) && !["string","number"].includes(typeof row[key]))
+        throw Error(`${key} must be a string, number, or null.`);
+    }
+    for (const key of valueKeys) {
+      if (!missing(row[key]) &&
+          (typeof row[key] !== "number" || !Number.isFinite(row[key])))
+        throw Error(`${key} must be a finite number or null.`);
+    }
+    if (!missing(row.expression_count) &&
+        (!Number.isSafeInteger(row.expression_count) || row.expression_count < 0))
+      throw Error("expression_count must be a nonnegative safe integer.");
+  }
+}
+function render() {
+  observations = report.dataset.observations;
+  renderFilters(); renderObservations();
+  show("sequencing", {
+    dataset_id: report.dataset.id ?? null,
+    synthetic: report.dataset.synthetic ?? "undeclared",
+    sequencing: report.dataset.sequencing ?? null,
+    quality: report.dataset.quality ?? null,
+    preprocessing: report.dataset.preprocessing ?? null
+  });
+  show("models", report.models.map(model => ({
+    id: model.id ?? null, status: model.status ?? "not supplied",
+    assumptions: model.assumptions ?? null,
+    structure: model.structure ?? null, priors: model.priors ?? null,
+    likelihood: model.likelihood ?? null, fit: model.fit ?? null,
+    limitations: model.limitations ?? null
+  })));
+  show("parameters", report.models.map(model => ({
+    id: model.id ?? null, parameters: model.parameters ?? null,
+    dimensions: model.dimensions ?? null, priors: model.priors ?? null
+  })));
+  show("posteriors", report.models.map(model => ({
+    id: model.id ?? null, status: model.status ?? "not supplied",
+    summary: model.summary ?? null,
+    diagnostics: model.diagnostics ?? null,
+    uncertainty_status: model.summary ?
+      "Inspect supplied intervals, standard deviations and diagnostics; viewer has not validated them." :
+      "No posterior summary supplied."
+  })));
+  show("predictions", report.models.map(model => ({
+    id: model.id ?? null, predictions: model.predictions ?? null
+  })));
+  for (const key of ["constraints","binary","ptm","quipper","artifacts","stages"])
+    show(key, report[key]);
+  $("state").textContent =
+    "Report loaded. Observation filters do not refit models or change posterior summaries. " +
+    "Model comparison is descriptive; no biological explanation is selected.";
+}
+let loadNumber = 0;
+$("file").addEventListener("change", async event => {
+  const current = ++loadNumber;
+  const file = event.target.files[0];
+  if (!file) return;
+  $("error").textContent = "";
+  try {
+    if (file.size > 10 * 1024 * 1024)
+      throw Error("Report exceeds this viewer's 10 MiB import limit.");
+    const candidate = JSON.parse(await file.text());
+    if (current !== loadNumber) return;
+    validate(candidate); report = candidate; render();
+  } catch (error) {
+    if (current !== loadNumber) return;
+    $("error").textContent = error.message;
+    $("state").textContent =
+      report ? "Import rejected. Previous report remains displayed." :
+               "Import rejected. No report loaded.";
+  }
+});
+for (const id of ["models","parameters","posteriors","predictions",
+                  "constraints","binary","ptm","quipper","artifacts","stages"])
+  show(id, null);
+</script>
+</html>
