@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BIO-SEMANTICS — Gene-Expression Semantic Modeling Pipeline</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500&family=Inter:wght@300;400;600&display=swap');
+:root {
+  --bg: #0a0e14; --surface: #111820; --border: #1e2a38;
+  --text: #c5d0dc; --dim: #5a6a7a; --bright: #e8edf2;
+  --cyan: #00e5ff; --blue: #448aff; --violet: #b388ff;
+  --green: #69f0ae; --amber: #ffd740; --red: #ff5252;
+  --bio: #00c853; --glow-cyan: 0 0 20px rgba(0,229,255,.15);
+  --glow-violet: 0 0 20px rgba(179,136,255,.15);
+  --mono: 'JetBrains Mono', monospace; --sans: 'Inter', system-ui, sans-serif;
+  --radius: 8px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font: 14px/1.6 var(--sans); color: var(--text); background: var(--bg); min-height: 100vh; }
+h1, h2, h3 { font-weight: 600; color: var(--bright); }
+
+/* HEADER */
+.header {
+  text-align: center; padding: 32px 24px 24px;
+  background: linear-gradient(180deg, rgba(0,229,255,.04) 0%, transparent 100%);
+  border-bottom: 1px solid var(--border);
+}
+.header h1 { font: 600 2.2rem var(--mono); letter-spacing: .15em; color: var(--cyan); text-shadow: var(--glow-cyan); }
+.header .subtitle { font: 300 1rem var(--sans); color: var(--dim); margin-top: 4px; }
+.header .authors { font: 400 .85rem var(--mono); color: var(--violet); margin-top: 12px; letter-spacing: .05em; }
+.header .protocol { font: 500 .75rem var(--mono); color: var(--dim); margin-top: 8px; letter-spacing: .2em; text-transform: uppercase; }
+
+/* NAV */
+nav {
+  display: flex; gap: 2px; justify-content: center; padding: 12px 24px;
+  background: var(--surface); border-bottom: 1px solid var(--border); flex-wrap: wrap;
+}
+nav button {
+  font: 500 .7rem var(--mono); color: var(--dim); background: transparent;
+  border: 1px solid transparent; padding: 6px 14px; border-radius: 4px;
+  cursor: pointer; letter-spacing: .1em; text-transform: uppercase; transition: all .2s;
+}
+nav button:hover, nav button.active { color: var(--cyan); border-color: var(--border); background: rgba(0,229,255,.04); }
+
+/* GRID */
+.main { display: grid; grid-template-columns: 1fr 1.4fr 1fr; gap: 16px; padding: 20px; max-width: 1600px; margin: 0 auto; }
+@media (max-width: 1200px) { .main { grid-template-columns: 1fr; } }
+
+/* PANELS */
+.panel {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 16px; position: relative; overflow: hidden;
+}
+.panel::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--cyan), transparent); opacity: .3;
+}
+.panel h2 {
+  font: 600 .8rem var(--mono); color: var(--cyan); letter-spacing: .12em;
+  text-transform: uppercase; margin-bottom: 12px; padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.panel h3 { font: 500 .7rem var(--mono); color: var(--violet); letter-spacing: .1em; text-transform: uppercase; margin: 12px 0 6px; }
+
+/* TAGS */
+.tag {
+  display: inline-block; font: 500 .65rem var(--mono); padding: 2px 8px;
+  border-radius: 3px; letter-spacing: .08em; text-transform: uppercase;
+}
+.tag-observed { color: var(--green); border: 1px solid rgba(105,240,174,.3); background: rgba(105,240,174,.06); }
+.tag-inferred { color: var(--violet); border: 1px solid rgba(179,136,255,.3); background: rgba(179,136,255,.06); }
+.tag-derived { color: var(--blue); border: 1px solid rgba(68,138,255,.3); background: rgba(68,138,255,.06); }
+.tag-predicted { color: var(--amber); border: 1px solid rgba(255,215,64,.3); background: rgba(255,215,64,.06); }
+.tag-constrained { color: var(--cyan); border: 1px solid rgba(0,229,255,.3); background: rgba(0,229,255,.06); }
+.tag-encoded { color: #ff80ab; border: 1px solid rgba(255,128,171,.3); background: rgba(255,128,171,.06); }
+.tag-executed { color: #ea80fc; border: 1px solid rgba(234,128,252,.3); background: rgba(234,128,252,.06); }
+
+/* TABLES */
+table { width: 100%; border-collapse: collapse; font: 400 .75rem var(--mono); }
+th { text-align: left; color: var(--dim); font-weight: 500; padding: 4px 8px; border-bottom: 1px solid var(--border); letter-spacing: .05em; }
+td { padding: 4px 8px; border-bottom: 1px solid rgba(30,42,56,.5); color: var(--text); }
+tr:hover td { background: rgba(0,229,255,.02); }
+
+/* FLOW */
+.flow { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.flow-node {
+  font: 500 .7rem var(--mono); color: var(--bright); background: rgba(0,229,255,.06);
+  border: 1px solid rgba(0,229,255,.2); padding: 6px 16px; border-radius: 4px;
+  text-align: center; letter-spacing: .08em; text-transform: uppercase; width: 100%; max-width: 260px;
+  cursor: pointer; transition: all .2s;
+}
+.flow-node:hover { border-color: var(--cyan); box-shadow: var(--glow-cyan); }
+.flow-arrow { color: var(--dim); font-size: .6rem; }
+
+/* HELIX */
+.helix-container { position: relative; height: 600px; display: flex; align-items: center; justify-content: center; }
+.helix-svg { width: 200px; height: 100%; }
+.helix-labels {
+  position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  height: 100%; display: flex; flex-direction: column; justify-content: space-between;
+  padding: 20px 0;
+}
+.helix-label {
+  font: 400 .65rem var(--mono); color: var(--dim); text-align: center;
+  padding: 2px 12px; border-radius: 3px; letter-spacing: .06em;
+  transition: all .3s;
+}
+.helix-label:hover { color: var(--cyan); background: rgba(0,229,255,.06); }
+
+/* VALIDATOR */
+.rule-grid { display: grid; grid-template-columns: auto 1fr auto; gap: 2px 8px; align-items: center; }
+.rule-num { font: 500 .65rem var(--mono); color: var(--dim); }
+.rule-text { font: 400 .72rem var(--sans); color: var(--text); }
+.rule-status { width: 8px; height: 8px; border-radius: 50%; }
+.rule-status.pass { background: var(--green); box-shadow: 0 0 6px rgba(105,240,174,.4); }
+.rule-status.pending { background: var(--amber); box-shadow: 0 0 6px rgba(255,215,64,.3); }
+
+/* PTM */
+.tape { display: flex; gap: 1px; margin: 8px 0; }
+.tape-cell {
+  width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+  font: 500 .8rem var(--mono); border: 1px solid var(--border); border-radius: 3px;
+  color: var(--bright); background: var(--bg); transition: all .3s;
+}
+.tape-cell.head { border-color: var(--cyan); color: var(--cyan); box-shadow: var(--glow-cyan); background: rgba(0,229,255,.08); }
+.tape-cell.blank { color: var(--dim); }
+.state-badge {
+  font: 500 .7rem var(--mono); padding: 3px 10px; border-radius: 4px;
+  display: inline-block;
+}
+.state-even { color: var(--cyan); border: 1px solid rgba(0,229,255,.3); background: rgba(0,229,255,.06); }
+.state-odd { color: var(--violet); border: 1px solid rgba(179,136,255,.3); background: rgba(179,136,255,.06); }
+.state-accept { color: var(--green); border: 1px solid rgba(105,240,174,.3); background: rgba(105,240,174,.06); }
+
+/* DISTRIBUTIONS */
+.dist-bar { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+.dist-label { font: 400 .7rem var(--mono); color: var(--dim); width: 80px; text-align: right; }
+.dist-track { flex: 1; height: 4px; background: var(--border); border-radius: 2px; position: relative; }
+.dist-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--violet), var(--cyan)); }
+.dist-ci { position: absolute; top: -4px; height: 12px; border-left: 1px solid var(--amber); border-right: 1px solid var(--amber); background: rgba(255,215,64,.08); }
+.dist-val { font: 400 .65rem var(--mono); color: var(--bright); width: 50px; }
+
+/* PROVENANCE */
+.hash { font: 400 .65rem var(--mono); color: var(--dim); word-break: break-all; }
+.chain-link { display: flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid rgba(30,42,56,.3); }
+.chain-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--cyan); flex-shrink: 0; }
+.chain-info { flex: 1; }
+.chain-id { font: 500 .7rem var(--mono); color: var(--bright); }
+.chain-meta { font: 400 .6rem var(--mono); color: var(--dim); }
+
+/* CIRCUIT */
+.circuit { font: 400 .7rem var(--mono); color: var(--text); background: var(--bg); padding: 8px; border-radius: 4px; border: 1px solid var(--border); overflow-x: auto; white-space: pre; }
+
+/* MAINFRAME */
+.mainframe-box {
+  border: 1px solid var(--border); border-radius: 4px; padding: 8px;
+  background: repeating-linear-gradient(0deg, transparent, transparent 19px, rgba(30,42,56,.3) 20px);
+  font: 400 .7rem var(--mono); color: var(--dim);
+}
+.job-id { color: var(--amber); }
+.dsn { color: var(--green); }
+
+/* BOTTOM BAR */
+.bottom-bar {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px; padding: 20px; max-width: 1600px; margin: 0 auto;
+}
+
+/* FULL WIDTH SECTIONS */
+.full-width { grid-column: 1 / -1; }
+
+/* FOOTER */
+footer {
+  text-align: center; padding: 24px; font: 400 .75rem var(--mono);
+  color: var(--dim); border-top: 1px solid var(--border);
+  letter-spacing: .1em;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>BIO-SEMANTICS</h1>
+  <div class="subtitle">Gene-Expression Semantic Modeling Pipeline</div>
+  <div class="authors">AHMAD ALI PARR &middot; JESSICA L. WILLIAMS &middot; SNAPKITTYWEST</div>
+  <div class="protocol">Evidence or Silence &middot; 2026</div>
+</div>
+
+<nav>
+  <button class="active">OBSERVATIONS</button>
+  <button>SEMANTICS</button>
+  <button>BAYESIAN</button>
+  <button>CONSTRAINTS</button>
+  <button>BINARY</button>
+  <button>PTM</button>
+  <button>QUIPPER</button>
+  <button>PROVENANCE</button>
+  <button>RPG/JCL</button>
+</nav>
+
+<div class="main">
+
+  <!-- LEFT COLUMN -->
+  <div style="display:flex;flex-direction:column;gap:16px;">
+
+    <!-- cDNA Observations -->
+    <div class="panel">
+      <h2>cDNA Observations</h2>
+      <span class="tag tag-observed">OBSERVED</span>
+      <table style="margin-top:8px;">
+        <thead><tr><th>GENE</th><th>SAMPLE</th><th>COUNT</th><th>NORM</th></tr></thead>
+        <tbody>
+          <tr><td>BRCA1</td><td>S001</td><td>4,892</td><td>8.24</td></tr>
+          <tr><td>TP53</td><td>S001</td><td>12,340</td><td>11.02</td></tr>
+          <tr><td>MYC</td><td>S002</td><td>891</td><td>6.15</td></tr>
+          <tr><td>EGFR</td><td>S002</td><td style="color:var(--amber)">MISSING</td><td style="color:var(--amber)">MISSING</td></tr>
+          <tr><td>KRAS</td><td>S003</td><td>2,107</td><td>7.89</td></tr>
+          <tr><td>PTEN</td><td>S003</td><td>6,723</td><td>9.41</td></tr>
+        </tbody>
+      </table>
+      <div style="margin-top:8px;font:.65rem var(--mono);color:var(--dim);">6 observations &middot; 3 samples &middot; 6 genes &middot; 1 missing cell</div>
+    </div>
+
+    <!-- Gene Expression Matrix -->
+    <div class="panel">
+      <h2>Gene Expression Matrix</h2>
+      <div style="display:grid;grid-template-columns:auto repeat(3,1fr);gap:1px;margin-top:8px;">
+        <div style="font:.6rem var(--mono);color:var(--dim);padding:4px;">GENE</div>
+        <div style="font:.6rem var(--mono);color:var(--dim);padding:4px;text-align:center;">S001</div>
+        <div style="font:.6rem var(--mono);color:var(--dim);padding:4px;text-align:center;">S002</div>
+        <div style="font:.6rem var(--mono);color:var(--dim);padding:4px;text-align:center;">S003</div>
+        <div style="font:.65rem var(--mono);color:var(--text);padding:4px;">BRCA1</div>
+        <div style="padding:4px;text-align:center;background:rgba(0,229,255,.15);font:.65rem var(--mono);color:var(--cyan);">8.24</div>
+        <div style="padding:4px;text-align:center;background:rgba(0,229,255,.06);font:.65rem var(--mono);color:var(--text);">5.12</div>
+        <div style="padding:4px;text-align:center;background:rgba(0,229,255,.10);font:.65rem var(--mono);color:var(--text);">7.01</div>
+        <div style="font:.65rem var(--mono);color:var(--text);padding:4px;">TP53</div>
+        <div style="padding:4px;text-align:center;background:rgba(105,240,174,.20);font:.65rem var(--mono);color:var(--green);">11.02</div>
+        <div style="padding:4px;text-align:center;background:rgba(105,240,174,.12);font:.65rem var(--mono);color:var(--text);">9.88</div>
+        <div style="padding:4px;text-align:center;background:rgba(105,240,174,.16);font:.65rem var(--mono);color:var(--text);">10.45</div>
+        <div style="font:.65rem var(--mono);color:var(--text);padding:4px;">MYC</div>
+        <div style="padding:4px;text-align:center;background:rgba(179,136,255,.06);font:.65rem var(--mono);color:var(--text);">4.21</div>
+        <div style="padding:4px;text-align:center;background:rgba(179,136,255,.10);font:.65rem var(--mono);color:var(--text);">6.15</div>
+        <div style="padding:4px;text-align:center;background:rgba(179,136,255,.04);font:.65rem var(--mono);color:var(--dim);">3.89</div>
+      </div>
+    </div>
+
+    <!-- Validation -->
+    <div class="panel">
+      <h2>Data Validation</h2>
+      <div style="font:.65rem var(--mono);color:var(--dim);margin-bottom:8px;">semantics.py &middot; 10 VALIDATOR RULES</div>
+      <div class="rule-grid">
+        <span class="rule-num">01</span><span class="rule-text">Version and discriminant check</span><span class="rule-status pass"></span>
+        <span class="rule-num">02</span><span class="rule-text">Value XOR missing reason</span><span class="rule-status pass"></span>
+        <span class="rule-num">03</span><span class="rule-text">Canonical unsigned decimal counts</span><span class="rule-status pass"></span>
+        <span class="rule-num">04</span><span class="rule-text">Finite decimals with units</span><span class="rule-status pass"></span>
+        <span class="rule-num">05</span><span class="rule-text">Sample/gene reference resolution</span><span class="rule-status pass"></span>
+        <span class="rule-num">06</span><span class="rule-text">Quantity kind integrity</span><span class="rule-status pass"></span>
+        <span class="rule-num">07</span><span class="rule-text">Exclusion map preservation</span><span class="rule-status pass"></span>
+        <span class="rule-num">08</span><span class="rule-text">Source byte completeness</span><span class="rule-status pending"></span>
+        <span class="rule-num">09</span><span class="rule-text">Synthetic origin propagation</span><span class="rule-status pass"></span>
+        <span class="rule-num">10</span><span class="rule-text">No phantom model results</span><span class="rule-status pass"></span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- CENTER COLUMN -->
+  <div style="display:flex;flex-direction:column;gap:16px;">
+
+    <!-- Architecture Flow -->
+    <div class="panel">
+      <h2>Architecture Pipeline</h2>
+      <div class="flow">
+        <div class="flow-node" style="border-color:rgba(105,240,174,.3);color:var(--green);">BIOLOGICAL OBSERVATIONS</div>
+        <div class="flow-arrow">&darr;</div>
+        <div class="flow-node" style="border-color:rgba(105,240,174,.2);">cDNA EXPRESSION DATA</div>
+        <div class="flow-arrow">&darr;</div>
+        <div class="flow-node">DATA VALIDATION</div>
+        <div class="flow-arrow">&darr;</div>
+        <div class="flow-node">GENE EXPRESSION</div>
+        <div class="flow-arrow">&darr;</div>
+        <div class="flow-node" style="border-color:rgba(179,136,255,.3);color:var(--violet);">STAN MODEL</div>
+        <div class="flow-arrow">&darr;</div>
+        <div class="flow-node" style="border-color:rgba(179,136,255,.2);">POSTERIOR STATE</div>
+        <div class="flow-arrow">&darr;</div>
+        <div class="flow-node" style="border-color:rgba(0,229,255,.3);">MINIZINC MODEL</div>
+        <div class="flow-arrow">&darr;</div>
+        <div class="flow-node">COMPUTATIONAL RESULT</div>
+        <div class="flow-arrow">&darr;</div>
+        <div class="flow-node" style="border-color:rgba(255,215,64,.3);color:var(--amber);">VISUALIZER</div>
+        <div class="flow-arrow">&darr;</div>
+        <div class="flow-node" style="border-color:rgba(0,229,255,.4);color:var(--cyan);">HUMAN-READABLE MODEL</div>
+      </div>
+    </div>
+
+    <!-- Quantity Kinds -->
+    <div class="panel">
+      <h2>Semantic Quantity Classification</h2>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;">
+        <span class="tag tag-observed">OBSERVED &mdash; measurement</span>
+        <span class="tag tag-inferred">INFERRED &mdash; posterior</span>
+        <span class="tag tag-derived">DERIVED &mdash; transformation</span>
+        <span class="tag tag-predicted">PREDICTED &mdash; model output</span>
+        <span class="tag tag-constrained">CONSTRAINED &mdash; solver</span>
+        <span class="tag tag-encoded">ENCODED &mdash; representation</span>
+        <span class="tag tag-executed">EXECUTED &mdash; run evidence</span>
+      </div>
+      <div style="margin-top:12px;font:.7rem var(--sans);color:var(--dim);line-height:1.8;">
+        Observed measurements &ne; inferred posteriors.<br>
+        Inferred posteriors &ne; deterministic derivations.<br>
+        Derivations &ne; binary representations.<br>
+        Representations &ne; execution evidence.
+      </div>
+    </div>
+
+    <!-- PTM -->
+    <div class="panel">
+      <h2>PTM &mdash; Bit Parity / 1</h2>
+      <div style="display:flex;gap:12px;align-items:center;margin-bottom:8px;">
+        <span class="state-badge state-even">q_even</span>
+        <span class="state-badge state-odd">q_odd</span>
+        <span class="state-badge state-accept">q_accept</span>
+      </div>
+      <div class="tape">
+        <div class="tape-cell">1</div>
+        <div class="tape-cell">0</div>
+        <div class="tape-cell head">1</div>
+        <div class="tape-cell">1</div>
+        <div class="tape-cell">0</div>
+        <div class="tape-cell">1</div>
+        <div class="tape-cell">0</div>
+        <div class="tape-cell blank">_</div>
+      </div>
+      <table style="margin-top:8px;">
+        <thead><tr><th>STATE</th><th>READ</th><th>WRITE</th><th>MOVE</th><th>NEXT</th></tr></thead>
+        <tbody>
+          <tr><td>q_even</td><td>0</td><td>0</td><td>R</td><td>q_even</td></tr>
+          <tr><td>q_even</td><td>1</td><td>1</td><td>R</td><td>q_odd</td></tr>
+          <tr><td>q_odd</td><td>0</td><td>0</td><td>R</td><td>q_odd</td></tr>
+          <tr><td>q_odd</td><td>1</td><td>1</td><td>R</td><td>q_even</td></tr>
+          <tr><td>q_even</td><td>_</td><td>0</td><td>Stay</td><td>q_accept</td></tr>
+          <tr><td>q_odd</td><td>_</td><td>1</td><td>Stay</td><td>q_accept</td></tr>
+        </tbody>
+      </table>
+      <div style="margin-top:8px;font:.65rem var(--mono);color:var(--dim);">
+        n INPUT SYMBOLS &middot; n+1 TRANSITIONS &middot; O(1) AUXILIARY STORAGE
+      </div>
+    </div>
+
+  </div>
+
+  <!-- RIGHT COLUMN -->
+  <div style="display:flex;flex-direction:column;gap:16px;">
+
+    <!-- Stan -->
+    <div class="panel">
+      <h2>Stan &mdash; Bayesian Inference</h2>
+      <span class="tag tag-inferred">INFERRED</span>
+      <h3>Prior &rarr; Likelihood &rarr; Posterior</h3>
+      <div style="margin-top:8px;">
+        <div class="dist-bar">
+          <span class="dist-label">baseline</span>
+          <div class="dist-track"><div class="dist-fill" style="width:72%;"></div><div class="dist-ci" style="left:28%;width:44%;"></div></div>
+          <span class="dist-val">6.84</span>
+        </div>
+        <div class="dist-bar">
+          <span class="dist-label">cond_eff</span>
+          <div class="dist-track"><div class="dist-fill" style="width:45%;"></div><div class="dist-ci" style="left:15%;width:30%;"></div></div>
+          <span class="dist-val">1.23</span>
+        </div>
+        <div class="dist-bar">
+          <span class="dist-label">time_eff</span>
+          <div class="dist-track"><div class="dist-fill" style="width:31%;"></div><div class="dist-ci" style="left:10%;width:21%;"></div></div>
+          <span class="dist-val">0.47</span>
+        </div>
+        <div class="dist-bar">
+          <span class="dist-label">sigma</span>
+          <div class="dist-track"><div class="dist-fill" style="width:58%;"></div><div class="dist-ci" style="left:38%;width:20%;"></div></div>
+          <span class="dist-val">2.11</span>
+        </div>
+      </div>
+      <table style="margin-top:12px;">
+        <thead><tr><th>PARAM</th><th>MEAN</th><th>SD</th><th>95% CI</th><th>R-HAT</th><th>ESS</th></tr></thead>
+        <tbody>
+          <tr><td>baseline</td><td>6.84</td><td>0.42</td><td>[6.02, 7.66]</td><td>1.00</td><td>4200</td></tr>
+          <tr><td>cond_eff</td><td>1.23</td><td>0.31</td><td>[0.63, 1.84]</td><td>1.00</td><td>3800</td></tr>
+          <tr><td>time_eff</td><td>0.47</td><td>0.18</td><td>[0.12, 0.82]</td><td>1.01</td><td>2900</td></tr>
+          <tr><td>sigma</td><td>2.11</td><td>0.15</td><td>[1.82, 2.41]</td><td>1.00</td><td>4100</td></tr>
+        </tbody>
+      </table>
+      <div style="margin-top:8px;font:.6rem var(--mono);color:var(--dim);">0 divergences &middot; run_id: not_run</div>
+    </div>
+
+    <!-- MiniZinc -->
+    <div class="panel">
+      <h2>MiniZinc &mdash; Constraints</h2>
+      <span class="tag tag-constrained">CONSTRAINED</span>
+      <table style="margin-top:8px;">
+        <thead><tr><th>VARIABLE</th><th>DOMAIN</th><th>CONSTRAINT</th><th>STATUS</th></tr></thead>
+        <tbody>
+          <tr><td>sample_assign</td><td>{0,1}</td><td>balanced groups</td><td style="color:var(--green);">feasible</td></tr>
+          <tr><td>batch_block</td><td>1..4</td><td>no confounding</td><td style="color:var(--green);">feasible</td></tr>
+          <tr><td>gene_select</td><td>{0,1}</td><td>top-k variance</td><td style="color:var(--amber);">not_run</td></tr>
+        </tbody>
+      </table>
+      <div style="margin-top:8px;font:.6rem var(--mono);color:var(--dim);">solver_outcome: not_run</div>
+    </div>
+
+    <!-- Quipper -->
+    <div class="panel">
+      <h2>Quipper &mdash; Quantum Circuit</h2>
+      <div class="circuit">q0: ─── H ──── ● ──── M ───
+q1: ──────── X ──── M ───
+q2: ─── H ──────── M ───
+
+DEPTH: 3  QUBITS: 3  GATES: 4
+MEASUREMENTS: 3  ANCILLAS: 0</div>
+      <div style="margin-top:8px;font:.6rem var(--mono);color:var(--dim);">generation: specified &middot; validation: not_run &middot; execution: not_run</div>
+    </div>
+
+    <!-- Binary Semantics -->
+    <div class="panel">
+      <h2>Binary Semantics</h2>
+      <span class="tag tag-encoded">ENCODED</span>
+      <div style="margin-top:8px;font:.7rem var(--mono);color:var(--text);">
+        <div>PROFILE: u32-checked/1</div>
+        <div style="color:var(--dim);margin-top:4px;">unsigned 32-bit &middot; big-endian &middot; 0..4294967295</div>
+        <div style="color:var(--dim);">overflow: trap &middot; div-by-zero: trap</div>
+      </div>
+      <h3>State Transition</h3>
+      <div style="font:.65rem var(--mono);color:var(--text);margin-top:4px;">
+        <div>SEMANTIC VALUE &rarr; ENCODING &rarr; BITS &rarr; STATE &rarr; TRANSITION</div>
+        <div style="margin-top:4px;color:var(--cyan);letter-spacing:.15em;">00000000 00000000 00010011 10110010</div>
+        <div style="color:var(--dim);margin-top:2px;">present zero &ne; missing &middot; distinct encodings</div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- BOTTOM BAR -->
+<div class="bottom-bar">
+
+  <!-- Provenance -->
+  <div class="panel">
+    <h2>Immutable Provenance</h2>
+    <div class="chain-link">
+      <div class="chain-dot"></div>
+      <div class="chain-info">
+        <div class="chain-id">art_001_source_cdna</div>
+        <div class="chain-meta">sha256: a3f8c1...9e2d &middot; SOURCE</div>
+      </div>
+    </div>
+    <div class="chain-link">
+      <div class="chain-dot" style="background:var(--green);"></div>
+      <div class="chain-info">
+        <div class="chain-id">art_002_validated</div>
+        <div class="chain-meta">sha256: 7b2e4f...c8a1 &middot; parent: art_001 &middot; VALIDATION</div>
+      </div>
+    </div>
+    <div class="chain-link">
+      <div class="chain-dot" style="background:var(--violet);"></div>
+      <div class="chain-info">
+        <div class="chain-id">art_003_stan_model</div>
+        <div class="chain-meta">sha256: unavailable &middot; parent: art_002 &middot; INFERENCE</div>
+      </div>
+    </div>
+    <div class="chain-link">
+      <div class="chain-dot" style="background:var(--amber);"></div>
+      <div class="chain-info">
+        <div class="chain-id">art_004_minizinc</div>
+        <div class="chain-meta">sha256: unavailable &middot; parent: art_003 &middot; CONSTRAINT</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RPG/JCL -->
+  <div class="panel">
+    <h2>RPG / JCL Integration</h2>
+    <div class="mainframe-box">
+      <div><span class="job-id">WORKFLOW:</span> RUNSTAGE</div>
+      <div>STAGE: PYTHON_PIPELINE</div>
+      <div>STATUS: <span style="color:var(--amber);">NOT_RUN</span></div>
+      <div style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px;">
+        <span class="job-id">//VAULTJOB</span> JOB (ACCOUNT)
+        <div><span class="dsn">DSN=YOURHLQ.VAULT.RUN0001.REPORT</span></div>
+        <div><span class="dsn">DSN=YOURHLQ.VAULT.RUN0001.MANIFEST</span></div>
+        <div style="margin-top:4px;">STATUS: <span style="color:var(--amber);">TEMPLATE ONLY</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Repository -->
+  <div class="panel">
+    <h2>Repository Structure</h2>
+    <div style="font:.7rem var(--mono);color:var(--text);line-height:2;">
+      <div style="color:var(--cyan);">bio-semantics/</div>
+      <div>&nbsp;&nbsp;src/</div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--green);">semantics.py</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--green);">test_semantics.py</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--amber);">dashboard.html</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--cyan);">index.html</span></div>
+      <div>&nbsp;&nbsp;spec/</div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--blue);">types.ts</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--dim);">contract.md</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--dim);">system_prompt.md</span></div>
+      <div>&nbsp;&nbsp;templates/</div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--violet);">workflow.rpgle</span></div>
+      <div>&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:var(--violet);">vault.jcl</span></div>
+    </div>
+  </div>
+
+  <!-- Gate Status -->
+  <div class="panel">
+    <h2>Gated Phases</h2>
+    <table>
+      <thead><tr><th>GATE</th><th>STATUS</th><th>EVIDENCE</th></tr></thead>
+      <tbody>
+        <tr><td>1. CONTRACT</td><td style="color:var(--green);">READY</td><td>Contracts specified, validators written</td></tr>
+        <tr><td>2. ENGINE</td><td style="color:var(--amber);">NOT STARTED</td><td>Stan/MiniZinc/Quipper sources pending</td></tr>
+        <tr><td>3. INTEGRATION</td><td style="color:var(--amber);">NOT STARTED</td><td>Panels, WORM, governance pending</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<footer>
+  BSL-1.1 / AGPL-3.0 / MPL-2.0 &middot; SNAPKITTY WEST / SNAPKITTYWEST &middot; EVIDENCE OR SILENCE &middot; 2026
+</footer>
+
+</body>
+</html>
